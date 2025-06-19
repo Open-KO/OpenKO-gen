@@ -1,0 +1,46 @@
+{
+  "database": 0,
+  "name": "COPY_SERIAL_ITEM",
+  "className": "CopySerialItem",
+  "description": "Represents the relationship between accounts and characters",
+  "columns": [
+    {
+      "name": "strAccountID",
+      "propertyName": "AccountId",
+      "description": "Account Identifier",
+      "type": "string",
+      "maxLength": 21,
+      "allowNull": true
+    },
+    {
+      "name": "byType",
+      "propertyName": "Type",
+      "description": "Type",
+      "type": "uint8",
+      "allowNull": true
+    },
+    {
+      "name": "nPos",
+      "propertyName": "Pos",
+      "description": "nPos: TODO",
+      "type": "int16",
+      "allowNull": true
+    },
+    {
+      "name": "ItemNum",
+      "propertyName": "ItemNum",
+      "description": "Item Number",
+      "type": "binary",
+      "maxLength": 4,
+      "allowNull": true
+    },
+    {
+      "name": "ItemSerial",
+      "propertyName": "ItemSerial",
+      "description": "Item Serial",
+      "type": "binary",
+      "maxLength": 8,
+      "allowNull": true
+    }
+  ]
+}
