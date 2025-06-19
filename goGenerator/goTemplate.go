@@ -25,6 +25,10 @@ import (
 
 %[7]s
 
+func init() {
+	ModelList = append(ModelList, &%[1]s{})
+}
+
 // %[1]s: %[4]s
 type %[1]s struct
 {

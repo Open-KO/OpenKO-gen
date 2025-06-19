@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"ko-codegen/goGenerator"
 	"ko-codegen/utils"
-	"os"
 )
 
 const (
@@ -73,19 +72,11 @@ func main() {
 		return
 	}
 
-	if args.Clean {
-		err := os.RemoveAll(utils.OutputDir)
-		if err != nil {
-			fmt.Printf("failed to clean the output directory: %w\n", err)
-			return
-		}
-	}
-
 	var genErr error
 	switch args.Lang {
 	case goLang:
 		// generate Go source for all the schemas
-		genErr = goGenerator.GenerateGo()
+		genErr = goGenerator.GenerateGo(args.Clean)
 	/*case cppLang:
 	// generate c++ source for all the schemas
 	genErr = cppGenerator.GenerateCpp()*/

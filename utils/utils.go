@@ -19,7 +19,7 @@ var (
 	OutputDir = DefaultOutputDir
 )
 
-// loadSchemas reads all *.json files from the given schemas directory and marshals them into TableDefs
+// LoadSchemas reads all *.json files from the given schemas directory and marshals them into TableDefs
 func LoadSchemas() (validSchemas []json_schema.TableDef, err error) {
 	fmt.Println("reading schema file names from: " + SchemaDir)
 	fileNames, err := GetSchemaFileNames(SchemaDir)

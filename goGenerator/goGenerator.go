@@ -14,12 +14,10 @@ import (
 )
 
 const (
-	moduleOutDir       = "kodb-gorm"
 	kogenPackageOutDir = "kogen" // kogen package will be flat until we introduce multi-db support
 	cgHelperFileName   = "kogen.go"
 	databaseConstFmt   = "_%sDatabaseNbr"
 	strWrapFmt         = "\"%s\""
-	sqlStrFmt          = "N'%s'"
 	decFmt             = "%d"
 	tableNameConstFmt  = "_%sTableName"
 
@@ -27,16 +25,24 @@ const (
 	// 2. Column List
 	// 3. Values list
 	insertTemplateFmt = `"INSERT INTO [%s] (%s) \nVALUES (%s)"`
-
-	GetDatabaseNameBodyFmt = `switch`
 )
 
 // generateGo generates go code files for each schema in utils.SchemaDir, and writes the result to the output dir (utils.OutputDir)
-func GenerateGo() (err error) {
+func GenerateGo(clean bool) (err error) {
 	// Read and compile all schema files in jsonSchema
 	validSchemas, err := utils.LoadSchemas()
 	if err != nil {
 		return err
+	}
+
+	if clean {
+		// Go clean needs to be specific to the directories it writes to, as to avoid
+		// deleting anything in openko-gorm/* when specified via command line
+		err = os.RemoveAll(filepath.Join(utils.OutputDir, kogenPackageOutDir))
+		if err != nil {
+			fmt.Printf("failed to clean the output directory: %w\n", err)
+			return
+		}
 	}
 
 	err = setupOutDir()
@@ -101,7 +107,7 @@ func GenerateGo() (err error) {
 		}
 
 		// write the template to a file
-		outFile := filepath.Join(utils.OutputDir, moduleOutDir, kogenPackageOutDir, template.GetFileName())
+		outFile := filepath.Join(utils.OutputDir, kogenPackageOutDir, template.GetFileName())
 		if fErr := utils.WriteToFile(outFile, templateStr); fErr != nil {
 			err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 			return err
@@ -122,11 +128,11 @@ func GenerateGo() (err error) {
 
 func setupOutDir() error {
 	// create moduleOutDir if it doesn't exist in the utils.OutputDir
-	return os.MkdirAll(filepath.Join(utils.OutputDir, moduleOutDir, kogenPackageOutDir), os.ModePerm)
+	return os.MkdirAll(filepath.Join(utils.OutputDir, kogenPackageOutDir), os.ModePerm)
 }
 
 func writeCgHelpers() error {
-	outFile := filepath.Join(utils.OutputDir, moduleOutDir, kogenPackageOutDir, cgHelperFileName)
+	outFile := filepath.Join(utils.OutputDir, kogenPackageOutDir, cgHelperFileName)
 	if fErr := utils.WriteToFile(outFile, cgHelpers.KogenTemplate); fErr != nil {
 		err := fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 		return err

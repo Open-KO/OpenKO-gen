@@ -20,6 +20,10 @@ var (
 	_loginDbName = "ACCOUNT"
 	_gameDbName  = "GAME"
 	_logDbName   = "LOG"
+
+	// Model list holds the list of all generated models;
+	// Models add themselves to this list in their init() function
+	ModelList = []Model{}
 )
 
 func SetDbNames(loginDbName string, gameDbName string, logDbName string) {
@@ -70,5 +74,6 @@ func GetOptionalBinaryVal(val *Binary) string {
 		return "NULL"
 	}
 	return "N'%s'"
-}`
+}
+`
 )
