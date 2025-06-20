@@ -8,44 +8,44 @@
       "name": "strAccountID",
       "propertyName": "AccountId",
       "description": "Account Identifier",
-      "type": "string",
-      "maxLength": 21,
+      "type": "varchar",
+      "length": 21,
       "isPrimaryKey": true
     },
     {
       "name": "bNation",
       "propertyName": "Nation",
       "description": "Nation Identifier",
-      "type": "uint8"
+      "type": "tinyint"
     },
     {
       "name": "bCharNum",
       "propertyName": "CharNum",
       "description": "Number of created characters",
-      "type": "uint8"
+      "type": "tinyint"
     },
     {
       "name": "strCharID1",
       "propertyName": "CharId1",
       "description": "Character 1 Name",
-      "type": "string",
-      "maxLength": 21,
+      "type": "varchar",
+      "length": 21,
       "allowNull": true
     },
     {
       "name": "strCharID2",
       "propertyName": "CharId2",
       "description": "Character 2 Name",
-      "type": "string",
-      "maxLength": 21,
+      "type": "varchar",
+      "length": 21,
       "allowNull": true
     },
     {
       "name": "strCharID3",
       "propertyName": "CharId3",
       "description": "Character 3 Name",
-      "type": "string",
-      "maxLength": 21,
+      "type": "varchar",
+      "length": 21,
       "allowNull": true
     }
   ]

@@ -2,7 +2,6 @@ package goGenerator
 
 import (
 	"fmt"
-	"ko-codegen/enums/genType"
 	"ko-codegen/igenerator"
 	"ko-codegen/jsonSchema"
 	"strings"
@@ -65,7 +64,7 @@ type %[1]s struct
 	gormTagPrimaryKey      string = "primaryKey"
 	gormTagDefaultValueFmt string = "default:%[1]s"
 	gormTagNotNULL         string = "not null"
-	gormBinaryTagFmt       string = "type:binary(%d)"
+	gormTypeTagFmt         string = "type:%[1]s"
 
 	// gormTagUnique string = "unique"
 	// gormTagIndex string = "index"
@@ -152,6 +151,13 @@ func (this *GoTemplate) Generate() (string, error) {
 			propStr += "\n"
 		}
 
+		goType, err := identifier.GetType(*prop)
+		if err != nil {
+			return "", err
+		}
+
+		gormType := prop.GormType()
+
 		// generate json tag
 		jsonOpt := []string{prop.Name}
 		if prop.AllowNull {
@@ -161,9 +167,8 @@ func (this *GoTemplate) Generate() (string, error) {
 
 		// generate gorm tag
 		gormTags := []string{fmt.Sprintf(gormTagColumnNameFmt, prop.Name)}
-		if prop.Type == genType.BINARY {
-			gormTags = append(gormTags, fmt.Sprintf(gormBinaryTagFmt, prop.MaxLength))
-		}
+		gormTags = append(gormTags, fmt.Sprintf(gormTypeTagFmt, gormType))
+
 		if prop.IsPrimaryKey {
 			gormTags = append(gormTags, gormTagPrimaryKey)
 		}
@@ -175,11 +180,7 @@ func (this *GoTemplate) Generate() (string, error) {
 		}
 		gormTag := fmt.Sprintf(gormTagFmt, strings.Join(gormTags, gormTagSeparator))
 
-		_type, err := identifier.GetType(*prop)
-		if err != nil {
-			return "", err
-		}
-		propStr += fmt.Sprintf(propertyFmt, _type, prop.PropertyName, prop.Description, prop.Name, jsonTag, gormTag)
+		propStr += fmt.Sprintf(propertyFmt, goType, prop.PropertyName, prop.Description, prop.Name, jsonTag, gormTag)
 	}
 
 	methodStr := ""

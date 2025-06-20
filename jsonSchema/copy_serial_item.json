@@ -8,22 +8,22 @@
       "name": "strAccountID",
       "propertyName": "AccountId",
       "description": "Account Identifier",
-      "type": "string",
-      "maxLength": 21,
+      "type": "char",
+      "length": 21,
       "allowNull": true
     },
     {
       "name": "byType",
       "propertyName": "Type",
       "description": "Type",
-      "type": "uint8",
+      "type": "tinyint",
       "allowNull": true
     },
     {
       "name": "nPos",
       "propertyName": "Pos",
       "description": "nPos: TODO",
-      "type": "int16",
+      "type": "smallint",
       "allowNull": true
     },
     {
@@ -31,7 +31,7 @@
       "propertyName": "ItemNum",
       "description": "Item Number",
       "type": "binary",
-      "maxLength": 4,
+      "length": 4,
       "allowNull": true
     },
     {
@@ -39,7 +39,7 @@
       "propertyName": "ItemSerial",
       "description": "Item Serial",
       "type": "binary",
-      "maxLength": 8,
+      "length": 8,
       "allowNull": true
     }
   ]

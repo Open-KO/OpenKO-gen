@@ -8,7 +8,7 @@
       "name": "sClass",
       "propertyName": "ClassId",
       "description": "ClassIdentifier",
-      "type": "int16"
+      "type": "smallint"
     },
     {
       "name": "ShortSword",
@@ -33,9 +33,7 @@
       "propertyName": "Club",
       "description": "Club Coefficient",
       "type": "float"
-    }
-
-  ,
+    },
     {
       "name": "Spear",
       "propertyName": "Spear",

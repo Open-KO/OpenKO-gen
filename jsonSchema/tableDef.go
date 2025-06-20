@@ -1,8 +1,9 @@
 package jsonSchema
 
 import (
-	"ko-codegen/enums/dbType"
-	"ko-codegen/enums/genType"
+	"fmt"
+	"ko-codegen/jsonSchema/enums/dbType"
+	"ko-codegen/jsonSchema/enums/tsql"
 )
 
 type TableDef struct {
@@ -14,12 +15,19 @@ type TableDef struct {
 }
 
 type Column struct {
-	Name         string          `json:"name"`                   // Column name in the database
-	PropertyName string          `json:"propertyName"`           // Code-friendly property name
-	Description  string          `json:"description"`            // Property description
-	Type         genType.GenType `json:"type"`                   // Property Type (uint8, string, etc)
-	IsPrimaryKey bool            `json:"isPrimaryKey,omitempty"` // Is this column part of the table's Primary Key?
-	DefaultValue string          `json:"defaultValue,omitempty"` // Default value that should be assigned to the property
-	AllowNull    bool            `json:"allowNull,omitempty"`    // Can the column's value be null?
-	MaxLength    int             `json:"maxLength,omitempty"`    // only applies to Strings (varchars)
+	Name         string        `json:"name"`                   // Column name in the database
+	PropertyName string        `json:"propertyName"`           // Code-friendly property name
+	Description  string        `json:"description"`            // Property description
+	Type         tsql.TSqlType `json:"type"`                   // Supported TSQL Type
+	IsPrimaryKey bool          `json:"isPrimaryKey,omitempty"` // Is this column part of the table's Primary Key?
+	DefaultValue string        `json:"defaultValue,omitempty"` // Default value that should be assigned to the property
+	AllowNull    bool          `json:"allowNull,omitempty"`    // Can the column's value be null?
+	Length       int           `json:"length,omitempty"`       // length specifier for array types
+}
+
+func (this *Column) GormType() string {
+	if this.Length > 0 {
+		return fmt.Sprintf("%s(%d)", this.Type, this.Length)
+	}
+	return string(this.Type)
 }

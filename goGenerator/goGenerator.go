@@ -2,10 +2,10 @@ package goGenerator
 
 import (
 	"fmt"
-	"ko-codegen/enums/genType"
 	cgHelpers "ko-codegen/goGenerator/cgHelpers/kogen"
 	"ko-codegen/igenerator"
 	"ko-codegen/jsonSchema"
+	"ko-codegen/jsonSchema/enums/tsql"
 	"ko-codegen/utils"
 	"os"
 	"os/exec"
@@ -25,6 +25,20 @@ const (
 	// 2. Column List
 	// 3. Values list
 	insertTemplateFmt = `"INSERT INTO [%s] (%s) \nVALUES (%s)"`
+
+	// 1. Table Name
+	// 2. Column Defs
+	// 3. Primary Key Def (optional)
+	// 4. Database Name
+	createTableTemplateFmt = `"CREATE TABLE \"%[1]s\" (\n%[2]s\n%[3]s\n)"`
+
+	// 1. Column Name
+	// 2. Column Type
+	// 3. Additional Constraints
+	createColumnTemplateFmt = `\t\"%[1]s\" %[2]s%[3]s`
+
+	// 1. PK Columns, string wrapped and csv
+	primaryKeyFmt = `\tPRIMARY KEY (%[1]s)`
 )
 
 // generateGo generates go code files for each schema in utils.SchemaDir, and writes the result to the output dir (utils.OutputDir)
@@ -99,6 +113,15 @@ func GenerateGo(clean bool) (err error) {
 		}
 		template.AddMethod(insertStrDef)
 
+		// Generate a GetCreateTableString() func
+		createTableDef := igenerator.MethodDef{
+			ReturnType:  "string",
+			Name:        "GetCreateTableString",
+			Body:        generateCreateTableBody(validSchemas[i]),
+			Description: "Returns the create table statement for this object",
+		}
+		template.AddMethod(createTableDef)
+
 		// generate template
 		templateStr, tErr := template.Generate()
 		if tErr != nil {
@@ -159,21 +182,53 @@ func generateInsertTemplateBody(def jsonSchema.TableDef) string {
 	return fmt.Sprintf("\treturn fmt.Sprintf(%s,%s)", insertFmt, strings.Join(propRefs, ",\n"))
 }
 
+func generateCreateTableBody(def jsonSchema.TableDef) string {
+	columnDefs := []string{}
+	primaryKeys := []string{}
+	for i := range def.Columns {
+		opt := ""
+		if !def.Columns[i].AllowNull {
+			opt = " NOT NULL"
+		}
+		columnDefs = append(columnDefs, fmt.Sprintf(createColumnTemplateFmt, def.Columns[i].Name, def.Columns[i].GormType(), opt))
+		if def.Columns[i].IsPrimaryKey {
+			primaryKeys = append(primaryKeys, fmt.Sprintf(`\"%s\"`, def.Columns[i].Name))
+		}
+	}
+
+	pkDef := ""
+	if len(primaryKeys) > 0 {
+		pkDef = fmt.Sprintf(primaryKeyFmt, strings.Join(primaryKeys, ", "))
+	}
+
+	createTableSql := fmt.Sprintf(createTableTemplateFmt, def.Name, strings.Join(columnDefs, `,\n`), pkDef)
+	return wrapQueryWithUseDbFmt(createTableSql)
+}
+
+func wrapQueryWithUseDbFmt(query string) string {
+	queryVar := fmt.Sprintf("\tquery := %s\n", query)
+	returnLn := `return fmt.Sprintf("USE [%[1]s]\nGO\n\n%[2]s", this.GetDatabaseName(), query)`
+	return queryVar + returnLn
+}
+
 func getPropRefByType(col jsonSchema.Column) string {
 	// return GetOptionalStringVal([&]col.PropertyName)
 	pName := fmt.Sprintf("this.%s", col.PropertyName)
-	// pass non-optional properties by reference to re-use the functions
-	// Ignore for binaries since slices are always pointers
-	if !col.AllowNull {
-		pName = fmt.Sprintf("&%s", pName)
-	}
+
 	switch col.Type {
-	case genType.BINARY:
+	case tsql.Char, tsql.NChar, tsql.Varchar, tsql.NVarchar:
+		// TODO:  Is string-specific callout needed?  Currently handling all of these as byte arrays
+		//return fmt.Sprintf("GetOptionalStringVal(%s)", pName)
+		fallthrough
+	case tsql.Binary, tsql.VarBinary:
 		// Going to have to work with this carefully when I get a good example to diff against
 		return fmt.Sprintf("GetOptionalBinaryVal(%s)", pName)
-	case genType.STRING:
-		return fmt.Sprintf("GetOptionalStringVal(%s)", pName)
 	default:
+		// pass non-optional properties by reference to re-use the functions
+		// Ignore slices; they are always pointers
+		if !col.AllowNull {
+			pName = fmt.Sprintf("&%s", pName)
+		}
 		return fmt.Sprintf("GetOptionalDecVal(%s)", pName)
 	}
 }
