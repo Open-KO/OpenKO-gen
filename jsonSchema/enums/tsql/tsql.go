@@ -4,22 +4,19 @@ type TSqlType string
 
 // doc: https://learn.microsoft.com/en-us/sql/t-sql/data-types/data-types-transact-sql?view=sql-server-ver17#binary-strings
 const (
-	TinyInt   TSqlType = "tinyint"   //uint8
-	SmallInt  TSqlType = "smallint"  //int16
-	Int       TSqlType = "int"       // int32
-	BigInt    TSqlType = "bigint"    // int64
-	Float     TSqlType = "float"     // float64 but value interpretation depends on (n)
-	Real      TSqlType = "real"      // float32
-	Char      TSqlType = "char"      // byte, fixed length
-	Varchar   TSqlType = "varchar"   // byte, variable length
-	NChar     TSqlType = "nchar"     // unicode byte, fixed length
-	NVarchar  TSqlType = "nvarchar"  // unicode byte, variable length
-	Binary    TSqlType = "binary"    // fixed length byte array
-	VarBinary TSqlType = "varbinary" // variable-length byte array
-
-	//Decimal  TSqlType = "decimal" //-10^38 + 1 through 10^38 - 1
-	//Numeric  TSqlType = "numeric" // decimal alias
-	//Text    TSqlType = "text"
+	TinyInt       TSqlType = "tinyint"       //uint8
+	SmallInt      TSqlType = "smallint"      //int16
+	Int           TSqlType = "int"           // int32
+	BigInt        TSqlType = "bigint"        // int64
+	Float         TSqlType = "float"         // float64 but value interpretation depends on (n)
+	Real          TSqlType = "real"          // float32
+	Char          TSqlType = "char"          // byte, fixed length
+	Varchar       TSqlType = "varchar"       // byte, variable length
+	NChar         TSqlType = "nchar"         // unicode byte, fixed length
+	NVarchar      TSqlType = "nvarchar"      // unicode byte, variable length
+	Binary        TSqlType = "binary"        // fixed length byte array
+	VarBinary     TSqlType = "varbinary"     // variable-length byte array
+	SmallDateTime TSqlType = "smalldatetime" // 1900-01-01 00:00:00; Storage takes 4 bytes
 )
 
 /* Notes

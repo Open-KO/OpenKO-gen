@@ -27,6 +27,7 @@ func init() {
 	TSqlTypeMapping[tsql.NVarchar] = "byte"
 	TSqlTypeMapping[tsql.Binary] = "byte"
 	TSqlTypeMapping[tsql.VarBinary] = "byte"
+	TSqlTypeMapping[tsql.SmallDateTime] = "int"
 }
 
 type GoIdentifier struct {
@@ -43,6 +44,6 @@ func (this GoIdentifier) GetType(property jsonSchema.Column) (_type string, err 
 	} else if _type != "" && property.AllowNull {
 		_type = fmt.Sprintf(optionalFmt, _type)
 	}
-	
+
 	return _type, nil
 }

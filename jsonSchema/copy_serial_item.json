@@ -2,7 +2,7 @@
   "database": 0,
   "name": "COPY_SERIAL_ITEM",
   "className": "CopySerialItem",
-  "description": "Represents the relationship between accounts and characters",
+  "description": "TODO: Doc",
   "columns": [
     {
       "name": "strAccountID",
