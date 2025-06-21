@@ -104,25 +104,25 @@
     },
     {
       "name": "BattleZone2X",
-      "propertyName": "BattleZoneX",
-      "description": "Battle Zone X",
+      "propertyName": "BattleZone2X",
+      "description": "Battle Zone 2 X",
       "type": "int"
     },{
       "name": "BattleZone2Z",
-      "propertyName": "BattleZoneZ",
-      "description": "Battle Zone Z",
+      "propertyName": "BattleZone2Z",
+      "description": "Battle Zone 2 Z",
       "type": "int"
     },
     {
       "name": "BattleZone2LX",
-      "propertyName": "BattleZoneLX",
-      "description": "Battle Zone LX",
+      "propertyName": "BattleZone2LX",
+      "description": "Battle Zone 2 LX",
       "type": "tinyint"
     },
     {
       "name": "BattleZone2LZ",
-      "propertyName": "BattleZoneLZ",
-      "description": "Battle Zone LZ",
+      "propertyName": "BattleZone2LZ",
+      "description": "Battle Zone 2 LZ",
       "type": "tinyint"
     }
   ]
