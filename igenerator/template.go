@@ -1,6 +1,8 @@
 package igenerator
 
-import "ko-codegen/jsonSchema"
+import (
+	"github.com/kenner2/OpenKO-db/jsonSchema"
+)
 
 type Template interface {
 	SetTableDef(def jsonSchema.TableDef)

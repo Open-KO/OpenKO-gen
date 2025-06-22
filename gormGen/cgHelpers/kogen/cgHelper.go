@@ -5,6 +5,11 @@ const (
 	// can take it out of string form to make edits
 	KogenTemplate = `package kogen
 
+import (
+	"fmt"
+	"time"
+)
+
 /** Enums **/
 type DbType uint8
 
@@ -14,23 +19,6 @@ const (
 	LOG   DbType = 2
 )
 
-type TSqlType string
-
-// doc: https://learn.microsoft.com/en-us/sql/t-sql/data-types/data-types-transact-sql?view=sql-server-ver17#binary-strings
-const (
-	TinyInt   TSqlType = "tinyint"   //uint8
-	SmallInt  TSqlType = "smallint"  //int16
-	Int       TSqlType = "int"       // int32
-	BigInt    TSqlType = "bigint"    // int64
-	Float     TSqlType = "float"     // float64 but value interpretation depends on (n)
-	Real      TSqlType = "real"      // float32
-	Char      TSqlType = "char"      // byte, fixed length
-	Varchar   TSqlType = "varchar"   // byte, variable length
-	NChar     TSqlType = "nchar"     // unicode byte, fixed length
-	NVarchar  TSqlType = "nvarchar"  // unicode byte, variable length
-	Binary    TSqlType = "binary"    // fixed length byte array
-	Varbinary TSqlType = "varbinary" // variable-length byte array
-)
 /** End Enums **/
 
 var (
@@ -95,5 +83,15 @@ func GetOptionalBinaryVal(val interface{}) string {
 	}
 	return "N'%s'"
 }
+
+// GetDateTimeExportFmt Returns an INSERT-friendly value from time.Time
+func GetDateTimeExportFmt(t *time.Time) string {
+	if t == nil {
+		return "NULL"
+	}
+	// CAST(N'2012-11-11T06:59:06.643' AS DateTime)
+	return fmt.Sprintf("CAST(N'%s' AS DateTime)", t.Format("2006-01-02T15:04:05.999"))
+}
+
 `
 )

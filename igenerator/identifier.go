@@ -1,7 +1,7 @@
 package igenerator
 
 import (
-	"ko-codegen/jsonSchema"
+	"github.com/kenner2/OpenKO-db/jsonSchema"
 )
 
 type Identifier interface {

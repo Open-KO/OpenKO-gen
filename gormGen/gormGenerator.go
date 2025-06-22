@@ -1,11 +1,11 @@
-package goGenerator
+package gormGen
 
 import (
 	"fmt"
-	cgHelpers "ko-codegen/goGenerator/cgHelpers/kogen"
+	"github.com/kenner2/OpenKO-db/jsonSchema"
+	"github.com/kenner2/OpenKO-db/jsonSchema/enums/tsql"
+	cgHelpers "ko-codegen/gormGen/cgHelpers/kogen"
 	"ko-codegen/igenerator"
-	"ko-codegen/jsonSchema"
-	"ko-codegen/jsonSchema/enums/tsql"
 	"ko-codegen/utils"
 	"os"
 	"os/exec"
@@ -30,12 +30,12 @@ const (
 	// 2. Column Defs
 	// 3. Primary Key Def (optional)
 	// 4. Database Name
-	createTableTemplateFmt = `"CREATE TABLE \"%[1]s\" (\n%[2]s\n%[3]s\n)"`
+	createTableTemplateFmt = `"CREATE TABLE [%[1]s] (\n%[2]s\n%[3]s\n)"`
 
 	// 1. Column Name
 	// 2. Column Type
 	// 3. Additional Constraints
-	createColumnTemplateFmt = `\t\"%[1]s\" %[2]s%[3]s`
+	createColumnTemplateFmt = `\t[%[1]s] %[2]s%[3]s`
 
 	// 1. PK Columns, string wrapped and csv
 	primaryKeyFmt = `\tPRIMARY KEY (%[1]s)`
@@ -54,7 +54,7 @@ func GenerateGo(clean bool) (err error) {
 		// deleting anything in openko-gorm/* when specified via command line
 		err = os.RemoveAll(filepath.Join(utils.OutputDir, kogenPackageOutDir))
 		if err != nil {
-			fmt.Printf("failed to clean the output directory: %w\n", err)
+			fmt.Printf("failed to clean the output directory: %v\n", err)
 			return
 		}
 	}
@@ -141,7 +141,7 @@ func GenerateGo(clean bool) (err error) {
 		// we'll log a warn on error
 		fmtErr := exec.Command("gofmt", "-w", outFile).Run()
 		if fmtErr != nil {
-			fmt.Printf("WARN: failed to run gofmt on %s: %w\n", outFile, fmtErr)
+			fmt.Printf("WARN: failed to run gofmt on %s: %v\n", outFile, fmtErr)
 		}
 	}
 
@@ -216,6 +216,11 @@ func getPropRefByType(col jsonSchema.Column) string {
 	pName := fmt.Sprintf("this.%s", col.PropertyName)
 
 	switch col.Type {
+	case tsql.DateTime:
+		if !col.AllowNull {
+			pName = fmt.Sprintf("&%s", pName)
+		}
+		return fmt.Sprintf("GetDateTimeExportFmt(%s)", pName)
 	case tsql.Char, tsql.NChar, tsql.Varchar, tsql.NVarchar:
 		// TODO:  Is string-specific callout needed?  Currently handling all of these as byte arrays
 		//return fmt.Sprintf("GetOptionalStringVal(%s)", pName)

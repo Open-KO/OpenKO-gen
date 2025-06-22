@@ -1,9 +1,9 @@
-package goGenerator
+package gormGen
 
 import (
 	"fmt"
+	"github.com/kenner2/OpenKO-db/jsonSchema"
 	"ko-codegen/igenerator"
-	"ko-codegen/jsonSchema"
 	"strings"
 )
 
@@ -28,7 +28,7 @@ func init() {
 	ModelList = append(ModelList, &%[1]s{})
 }
 
-// %[1]s: %[4]s
+// %[1]s %[4]s
 type %[1]s struct
 {
 %[2]s
@@ -125,12 +125,7 @@ func (this *GoTemplate) AddMethod(def igenerator.MethodDef) {
 
 func (this *GoTemplate) Generate() (string, error) {
 	if this.def.ClassName == "" {
-		return "", fmt.Errorf("Class name not set")
-	}
-
-	inclStr := ""
-	for k, _ := range this.includes {
-		inclStr += fmt.Sprintf(includeFmt, k)
+		return "", fmt.Errorf("className not set")
 	}
 
 	constStr := ""
@@ -154,6 +149,10 @@ func (this *GoTemplate) Generate() (string, error) {
 		goType, err := identifier.GetType(*prop)
 		if err != nil {
 			return "", err
+		}
+
+		if goType == "time.Time" {
+			this.AddInclude("time")
 		}
 
 		gormType := prop.GormType()
@@ -189,6 +188,11 @@ func (this *GoTemplate) Generate() (string, error) {
 			methodStr += "\n\n"
 		}
 		methodStr += this.methods[i]
+	}
+
+	inclStr := ""
+	for k := range this.includes {
+		inclStr += fmt.Sprintf(includeFmt, k)
 	}
 
 	return fmt.Sprintf(fileTemplateFmt, this.def.ClassName, propStr, methodStr, this.def.Description, inclStr, modelDir, constBlock), nil

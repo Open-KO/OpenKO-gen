@@ -3,15 +3,16 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	json_schema "ko-codegen/jsonSchema"
+	"github.com/kenner2/OpenKO-db/jsonSchema"
 	"os"
 	"path/filepath"
 )
 
 const (
 	DefaultOutputDir = "out"
-	DefaultSchemaDir = "jsonSchema"
+	DefaultSchemaDir = "./OpenKO-db/jsonSchema"
 	schemaExtPattern = "*.json"
+	GormLibOut       = "openko-gorm/"
 )
 
 var (
@@ -20,7 +21,7 @@ var (
 )
 
 // LoadSchemas reads all *.json files from the given schemas directory and marshals them into TableDefs
-func LoadSchemas() (validSchemas []json_schema.TableDef, err error) {
+func LoadSchemas() (validSchemas []jsonSchema.TableDef, err error) {
 	fmt.Println("reading schema file names from: " + SchemaDir)
 	fileNames, err := GetSchemaFileNames(SchemaDir)
 	if err != nil {
@@ -37,7 +38,7 @@ func LoadSchemas() (validSchemas []json_schema.TableDef, err error) {
 			return validSchemas, err
 		}
 
-		def := json_schema.TableDef{}
+		def := jsonSchema.TableDef{}
 		err = json.Unmarshal(bytes, &def)
 		if err != nil {
 			err = fmt.Errorf("failed to unmarshal schema file: %w", err)
