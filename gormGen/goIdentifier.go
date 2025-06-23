@@ -45,11 +45,6 @@ func (this GoIdentifier) GetType(property jsonSchema.Column) (_type string, err 
 		return "", fmt.Errorf("goIdentifier.GetType - unsupported type: %s", property.Type)
 	}
 
-	if property.Type == tsql.Text || property.Type == tsql.Image {
-		// don't set the capacity like other types; some of the defaults are 2GB
-		return fmt.Sprintf("[]%s", _type), nil
-	}
-
 	if property.Length > 0 {
 		return fmt.Sprintf("[%d]%s", property.Length, _type), nil
 	} else if _type != "" && property.AllowNull {

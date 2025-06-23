@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/kenner2/OpenKO-db/jsonSchema"
 	"ko-codegen/igenerator"
+	"sort"
 	"strings"
 )
 
@@ -128,10 +129,13 @@ func (this *GoTemplate) Generate() (string, error) {
 		return "", fmt.Errorf("className not set")
 	}
 
-	constStr := ""
+	// sort constants by name
+	var constSort []string
 	for k, v := range this.consts {
-		constStr += fmt.Sprintf(constPropFmt, k, v)
+		constSort = append(constSort, fmt.Sprintf(constPropFmt, k, v))
 	}
+	sort.Strings(constSort)
+	constStr := strings.Join(constSort, "")
 	constBlock := ""
 	if constStr != "" {
 		constBlock = fmt.Sprintf(constBlockFmt, constStr)
@@ -144,6 +148,13 @@ func (this *GoTemplate) Generate() (string, error) {
 		prop := &this.def.Columns[i]
 		if i > 0 {
 			propStr += "\n"
+		}
+
+		// sanity check on length MSSQL only allows 0-8000
+		if prop.Length < 0 {
+			prop.Length = 0
+		} else if prop.Length > 8000 {
+			prop.Length = 8000
 		}
 
 		goType, err := identifier.GetType(*prop)

@@ -10,6 +10,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"sort"
 	"strings"
 )
 
@@ -29,8 +30,8 @@ const (
 	// 1. Table Name
 	// 2. Column Defs
 	// 3. Primary Key Def (optional)
-	// 4. Database Name
-	createTableTemplateFmt = `"CREATE TABLE [%[1]s] (\n%[2]s\n%[3]s\n)"`
+	// 4. Constraints
+	createTableTemplateFmt = `"CREATE TABLE [%[1]s] (\n%[2]s\n%[3]s\n)\nGO\n%[4]s"`
 
 	// 1. Column Name
 	// 2. Column Type
@@ -38,7 +39,17 @@ const (
 	createColumnTemplateFmt = `\t[%[1]s] %[2]s%[3]s`
 
 	// 1. PK Columns, string wrapped and csv
-	primaryKeyFmt = `\tPRIMARY KEY (%[1]s)`
+	// 2. Table Name
+	primaryKeyFmt = `\tCONSTRAINT [PK_%[2]s] PRIMARY KEY (%[1]s)`
+
+	// 1. Table name
+	// 2. Column name
+	// 3. Default val
+	defaultValFmt = `ALTER TABLE [%[1]s] ADD CONSTRAINT [DF_%[1]s_%[2]s] DEFAULT %[3]s FOR [%[2]s]\nGO\n`
+
+	// 1. Key name
+	// 2. Columnsm string wrapped and csv
+	uniqueKeyFmt = `\tCONSTRAINT [%[1]s] UNIQUE (%[2]s)`
 )
 
 // generateGo generates go code files for each schema in utils.SchemaDir, and writes the result to the output dir (utils.OutputDir)
@@ -185,6 +196,8 @@ func generateInsertTemplateBody(def jsonSchema.TableDef) string {
 func generateCreateTableBody(def jsonSchema.TableDef) string {
 	columnDefs := []string{}
 	primaryKeys := []string{}
+	constraints := []string{}
+	uniqueKeys := make(map[string][]string)
 	for i := range def.Columns {
 		opt := ""
 		if !def.Columns[i].AllowNull {
@@ -192,16 +205,54 @@ func generateCreateTableBody(def jsonSchema.TableDef) string {
 		}
 		columnDefs = append(columnDefs, fmt.Sprintf(createColumnTemplateFmt, def.Columns[i].Name, def.Columns[i].GormType(), opt))
 		if def.Columns[i].IsPrimaryKey {
-			primaryKeys = append(primaryKeys, fmt.Sprintf(`\"%s\"`, def.Columns[i].Name))
+			primaryKeys = append(primaryKeys, fmt.Sprintf(`[%s]`, def.Columns[i].Name))
+		}
+		if def.Columns[i].DefaultValue != "" {
+			constraints = append(constraints, fmt.Sprintf(defaultValFmt, def.Name, def.Columns[i].Name, def.Columns[i].DefaultValue))
+		}
+		if def.Columns[i].Unique != "" {
+			if _, ok := uniqueKeys[def.Columns[i].Unique]; !ok {
+				uniqueKeys[def.Columns[i].Unique] = []string{def.Columns[i].Name}
+			} else {
+				uniqueKeys[def.Columns[i].Unique] = append(uniqueKeys[def.Columns[i].Unique], def.Columns[i].Name)
+			}
 		}
 	}
 
 	pkDef := ""
 	if len(primaryKeys) > 0 {
-		pkDef = fmt.Sprintf(primaryKeyFmt, strings.Join(primaryKeys, ", "))
+		pkDef = fmt.Sprintf(primaryKeyFmt, strings.Join(primaryKeys, ", "), def.Name)
 	}
 
-	createTableSql := fmt.Sprintf(createTableTemplateFmt, def.Name, strings.Join(columnDefs, `,\n`), pkDef)
+	if len(uniqueKeys) > 0 {
+		sorted := make([]string, 0, len(uniqueKeys))
+		for k := range uniqueKeys {
+			sorted = append(sorted, k)
+		}
+		sort.Strings(sorted)
+
+		uniques := []string{}
+		for i := range sorted {
+			keyCols := []string{}
+			for j := range uniqueKeys[sorted[i]] {
+				keyCols = append(keyCols, fmt.Sprintf(`[%s]`, uniqueKeys[sorted[i]][j]))
+			}
+			cols := strings.Join(keyCols, ", ")
+			uniques = append(uniques, fmt.Sprintf(uniqueKeyFmt, sorted[i], cols))
+		}
+		// add with PK
+		if len(pkDef) != 0 {
+			pkDef += `,\n`
+		}
+		pkDef += strings.Join(uniques, `,\n`)
+	}
+
+	constr := ""
+	if len(constraints) > 0 {
+		constr = strings.Join(constraints, "")
+	}
+
+	createTableSql := fmt.Sprintf(createTableTemplateFmt, def.Name, strings.Join(columnDefs, `,\n`), pkDef, constr)
 	return wrapQueryWithUseDbFmt(createTableSql)
 }
 
