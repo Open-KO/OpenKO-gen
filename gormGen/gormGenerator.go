@@ -3,10 +3,9 @@ package gormGen
 import (
 	"fmt"
 	"github.com/kenner2/OpenKO-db/jsonSchema"
-	"github.com/kenner2/OpenKO-db/jsonSchema/enums/tsql"
-	cgHelpers "ko-codegen/gormGen/cgHelpers/kogen"
-	"ko-codegen/igenerator"
-	"ko-codegen/utils"
+	cgHelpers "openko-gen/gormGen/cgHelpers/kogen"
+	"openko-gen/igenerator"
+	"openko-gen/utils"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -21,40 +20,12 @@ const (
 	strWrapFmt         = "\"%s\""
 	decFmt             = "%d"
 	tableNameConstFmt  = "_%sTableName"
-
-	// 1. Table Name
-	// 2. Column List
-	// 3. Values list
-	insertTemplateFmt = `"INSERT INTO [%s] (%s) \nVALUES (%s)"`
-
-	// 1. Table Name
-	// 2. Column Defs
-	// 3. Primary Key Def (optional)
-	// 4. Constraints
-	createTableTemplateFmt = `"CREATE TABLE [%[1]s] (\n%[2]s\n%[3]s\n)\nGO\n%[4]s"`
-
-	// 1. Column Name
-	// 2. Column Type
-	// 3. Additional Constraints
-	createColumnTemplateFmt = `\t[%[1]s] %[2]s%[3]s`
-
-	// 1. PK Columns, string wrapped and csv
-	// 2. Table Name
-	primaryKeyFmt = `\tCONSTRAINT [PK_%[2]s] PRIMARY KEY (%[1]s)`
-
-	// 1. Table name
-	// 2. Column name
-	// 3. Default val
-	defaultValFmt = `ALTER TABLE [%[1]s] ADD CONSTRAINT [DF_%[1]s_%[2]s] DEFAULT %[3]s FOR [%[2]s]\nGO\n`
-
-	// 1. Key name
-	// 2. Columnsm string wrapped and csv
-	uniqueKeyFmt = `\tCONSTRAINT [%[1]s] UNIQUE (%[2]s)`
 )
 
-// generateGo generates go code files for each schema in utils.SchemaDir, and writes the result to the output dir (utils.OutputDir)
+// GenerateGo generates go code files for each schema in OpenKO-db/jsonSchema,
+// and writes the result to the output dir (default: ./openko-gorm/)
 func GenerateGo(clean bool) (err error) {
-	// Read and compile all schema files in jsonSchema
+	// Read and bind all *.json files in jsonSchema
 	validSchemas, err := utils.LoadSchemas()
 	if err != nil {
 		return err
@@ -70,11 +41,13 @@ func GenerateGo(clean bool) (err error) {
 		}
 	}
 
+	// setupOutputDir creates the output directory if it doesn't exist
 	err = setupOutDir()
 	if err != nil {
 		return err
 	}
 
+	// writeCgHelpers writes the hand-coded helper file from cgHelpers/kogen to the output folder
 	err = writeCgHelpers()
 	if err != nil {
 		return err
@@ -87,6 +60,8 @@ func GenerateGo(clean bool) (err error) {
 		// structure and generate a code file
 		template := GoTemplate{}
 		template.def = validSchemas[i]
+		template.AddInclude("gorm.io/gorm")
+		template.AddInclude("gorm.io/gorm/clause")
 
 		// We need a few constants to save on memory:
 		// _(tableName)DatabaseNbr for GetDatabaseName
@@ -109,7 +84,7 @@ func GenerateGo(clean bool) (err error) {
 		// Generate a GetTableName() func
 		tblNameDef := igenerator.MethodDef{
 			ReturnType:  "string",
-			Name:        "GetTableName",
+			Name:        "TableName",
 			Body:        fmt.Sprintf("\treturn %s", tableNameConst),
 			Description: "Returns the table name",
 		}
@@ -124,6 +99,24 @@ func GenerateGo(clean bool) (err error) {
 		}
 		template.AddMethod(insertStrDef)
 
+		// Generate a GetInsertHeader() func
+		insertHeaderDef := igenerator.MethodDef{
+			ReturnType:  "string",
+			Name:        "GetInsertHeader",
+			Body:        generateInsertHeaderBody(validSchemas[i]),
+			Description: "Returns the header for the table insert dump (insert into table (cols) values",
+		}
+		template.AddMethod(insertHeaderDef)
+
+		// Generate a GetInsertData() func
+		insertDataDef := igenerator.MethodDef{
+			ReturnType:  "string",
+			Name:        "GetInsertData",
+			Body:        generateInsertDataBody(validSchemas[i]),
+			Description: "Returns the record data for the table insert dump",
+		}
+		template.AddMethod(insertDataDef)
+
 		// Generate a GetCreateTableString() func
 		createTableDef := igenerator.MethodDef{
 			ReturnType:  "string",
@@ -132,6 +125,30 @@ func GenerateGo(clean bool) (err error) {
 			Description: "Returns the create table statement for this object",
 		}
 		template.AddMethod(createTableDef)
+
+		// generate a SelectClause() func
+		selectClauseDef := igenerator.MethodDef{
+			ReturnType:  "selectClause clause.Select",
+			Name:        "SelectClause",
+			Body:        fmt.Sprintf(`return %s`, fmt.Sprintf(selectVarNameFmt, validSchemas[i].ClassName)),
+			Description: "Returns a safe select clause for the model",
+		}
+		template.AddMethod(selectClauseDef)
+
+		// additional code snippets
+		// selectVar is used to generate a _SelectClause package variable
+		selectVar, colNames := GenerateSelectVar(validSchemas[i])
+		template.additionalCode = append(template.additionalCode, selectVar)
+
+		// Generate a GetAllTableData method
+		getTableDataDef := igenerator.MethodDef{
+			ReturnType:  "results []Model, err error",
+			Name:        "GetAllTableData",
+			Params:      [][]string{{"db", "*gorm.DB"}},
+			Body:        fmt.Sprintf(getTableDataBodyFmt, validSchemas[i].ClassName, strings.Join(colNames, ", "), validSchemas[i].Name),
+			Description: "Returns a list of all table data",
+		}
+		template.AddMethod(getTableDataDef)
 
 		// generate template
 		templateStr, tErr := template.Generate()
@@ -160,11 +177,12 @@ func GenerateGo(clean bool) (err error) {
 	return nil
 }
 
+// setupOutputDir creates the output directory if it doesn't exist
 func setupOutDir() error {
-	// create moduleOutDir if it doesn't exist in the utils.OutputDir
 	return os.MkdirAll(filepath.Join(utils.OutputDir, kogenPackageOutDir), os.ModePerm)
 }
 
+// writeCgHelpers writes the hand-coded helper file from cgHelpers/kogen to the output folder
 func writeCgHelpers() error {
 	outFile := filepath.Join(utils.OutputDir, kogenPackageOutDir, cgHelperFileName)
 	if fErr := utils.WriteToFile(outFile, cgHelpers.KogenTemplate); fErr != nil {
@@ -175,24 +193,67 @@ func writeCgHelpers() error {
 	return nil
 }
 
+// generateInsertTemplateBody generates the function body of GetInsertString()
 func generateInsertTemplateBody(def jsonSchema.TableDef) string {
-	// 1. Table Name
-	// 2. Column List
-	// 3. Values list
-
 	columnNames := []string{}
 	valuesFmt := []string{}
 	propRefs := []string{}
 	for i := range def.Columns {
-		columnNames = append(columnNames, def.Columns[i].Name)
-		valuesFmt = append(valuesFmt, "%s")
+		columnNames = append(columnNames, fmt.Sprintf("[%s]", def.Columns[i].Name))
+		values := "%s"
+		if def.Columns[i].IsHexProtect {
+			ln := "MAX"
+			if def.Columns[i].Length > 0 {
+				ln = fmt.Sprintf("%d", def.Columns[i].Length)
+			}
+			values = fmt.Sprintf("CONVERT(%[1]s(%[2]s), %[3]s)", def.Columns[i].Type, ln, values)
+		}
+		valuesFmt = append(valuesFmt, values)
 		propRefs = append(propRefs, getPropRefByType(def.Columns[i]))
 	}
 
+	// 1. Table Name
+	// 2. Column List
+	// 3. Values list
 	insertFmt := fmt.Sprintf(insertTemplateFmt, def.Name, strings.Join(columnNames, ", "), strings.Join(valuesFmt, ", "))
 	return fmt.Sprintf("\treturn fmt.Sprintf(%s,%s)", insertFmt, strings.Join(propRefs, ",\n"))
 }
 
+// generateInsertHeaderBody generates the function body of GetInsertHeader()
+func generateInsertHeaderBody(def jsonSchema.TableDef) string {
+	columnNames := []string{}
+	for i := range def.Columns {
+		columnNames = append(columnNames, def.Columns[i].Name)
+	}
+
+	// 1. Table Name
+	// 2. Column List
+	header := fmt.Sprintf(insertHeaderFmt, def.Name, strings.Join(columnNames, ", "))
+	return fmt.Sprintf("\treturn %s", header)
+}
+
+// generateInsertDataBody generates the function body of GetInsertData()
+func generateInsertDataBody(def jsonSchema.TableDef) string {
+	valuesFmt := []string{}
+	propRefs := []string{}
+	for i := range def.Columns {
+		values := "%s"
+		if def.Columns[i].IsHexProtect {
+			ln := "MAX"
+			if def.Columns[i].Length > 0 {
+				ln = fmt.Sprintf("%d", def.Columns[i].Length)
+			}
+			values = fmt.Sprintf("CONVERT(%[1]s(%[2]s), %[3]s)", def.Columns[i].Type, ln, values)
+		}
+		valuesFmt = append(valuesFmt, values)
+		propRefs = append(propRefs, getPropRefByType(def.Columns[i]))
+	}
+
+	dataFmt := fmt.Sprintf(`"(%s)"`, strings.Join(valuesFmt, ", "))
+	return fmt.Sprintf("\treturn fmt.Sprintf(%s,%s)", dataFmt, strings.Join(propRefs, ",\n"))
+}
+
+// generateCreateTableBody generates the function body of GetCreateTableString()
 func generateCreateTableBody(def jsonSchema.TableDef) string {
 	columnDefs := []string{}
 	primaryKeys := []string{}
@@ -256,35 +317,31 @@ func generateCreateTableBody(def jsonSchema.TableDef) string {
 	return wrapQueryWithUseDbFmt(createTableSql)
 }
 
+// wrapQueryWithUseDbFmt wraps an input query with a USE [db] statement
 func wrapQueryWithUseDbFmt(query string) string {
 	queryVar := fmt.Sprintf("\tquery := %s\n", query)
 	returnLn := `return fmt.Sprintf("USE [%[1]s]\nGO\n\n%[2]s", this.GetDatabaseName(), query)`
 	return queryVar + returnLn
 }
 
-func getPropRefByType(col jsonSchema.Column) string {
-	// return GetOptionalStringVal([&]col.PropertyName)
-	pName := fmt.Sprintf("this.%s", col.PropertyName)
-
-	switch col.Type {
-	case tsql.DateTime:
-		if !col.AllowNull {
-			pName = fmt.Sprintf("&%s", pName)
+// GenerateSelectVar generates the package _SelectClause variable
+func GenerateSelectVar(def jsonSchema.TableDef) (selectVar string, colNames []string) {
+	cols := []string{}
+	for i := range def.Columns {
+		colName := def.Columns[i].Name
+		if def.Columns[i].IsHexProtect {
+			ln := "MAX"
+			if def.Columns[i].Length > 0 {
+				ln = fmt.Sprintf("%d", def.Columns[i].Length)
+			}
+			colName = fmt.Sprintf("CONVERT(VARBINARY(%[1]s), [%[2]s]) as [%[2]s]", ln, colName)
+		} else {
+			colName = fmt.Sprintf("[%s]", colName)
 		}
-		return fmt.Sprintf("GetDateTimeExportFmt(%s)", pName)
-	case tsql.Char, tsql.NChar, tsql.Varchar, tsql.NVarchar:
-		// TODO:  Is string-specific callout needed?  Currently handling all of these as byte arrays
-		//return fmt.Sprintf("GetOptionalStringVal(%s)", pName)
-		fallthrough
-	case tsql.Binary, tsql.VarBinary:
-		// Going to have to work with this carefully when I get a good example to diff against
-		return fmt.Sprintf("GetOptionalBinaryVal(%s)", pName)
-	default:
-		// pass non-optional properties by reference to re-use the functions
-		// Ignore slices; they are always pointers
-		if !col.AllowNull {
-			pName = fmt.Sprintf("&%s", pName)
-		}
-		return fmt.Sprintf("GetOptionalDecVal(%s)", pName)
+		colNames = append(colNames, colName)
+		cols = append(cols, fmt.Sprintf(colFmt, colName, def.Name))
 	}
+
+	varName := fmt.Sprintf(selectVarNameFmt, def.ClassName)
+	return fmt.Sprintf(selectVarFmt, strings.Join(cols, ""), varName), colNames
 }

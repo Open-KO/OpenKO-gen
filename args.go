@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"ko-codegen/utils"
+	"openko-gen/utils"
 )
 
 const (

@@ -3,7 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
-	"ko-codegen/gormGen"
+	"openko-gen/gormGen"
 	"strings"
 )
 

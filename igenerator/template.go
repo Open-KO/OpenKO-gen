@@ -14,9 +14,10 @@ type Template interface {
 }
 
 type MethodDef struct {
-	ReturnType  string
-	Name        string
-	Params      [][]string
-	Body        string
-	Description string
+	ReturnType    string
+	Name          string
+	Params        [][]string
+	Body          string
+	Description   string
+	IsPtrReceiver bool
 }

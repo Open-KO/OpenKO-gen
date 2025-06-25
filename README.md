@@ -6,11 +6,24 @@ The goal of this project is to:
 * Generate a Go Object Relational Mapping (GORM) Model library from the jsonSchema with additional helper functions
 * Implement everything via interfaces, such that the interfaces can be implemented for other languages/use-cases as desired
 
-The project is currently in prototyping and subject to refactoring.
+## Dependencies
+The following commands assume that you have a terminal open in the root folder of the project.
 
-## Build/Run Project
+The `OpenKO-db` and `openko-gorm` projects are submodules:
+* `OpenKO-db`: Schema definitions in OpenKO-db/jsonSchema are used to generate code.
+* `openko-gorm`: The `gorm` language option generates the gorm model library.  This library is imported to `kodb-util` to perform import/export tasks
 
-The project is coded in Go 1.24; You'll need to install the language and add it to your PATH. See https://go.dev/doc/install
+To get the submodule for the first time:
+```shell
+git submodule update --init --recursive
+```
+
+To get updates after the submodule has been pulled for the first time:
+```shell
+git submodule update --recursive --remote
+```
+
+This utility is programmed with Go 1.24+.  You'll need to install the language if you want to build locally. See https://go.dev/doc/install
 
 If Go is correctly installed on your path, you should be able to run `go version` in your terminal and get version
 information output:
@@ -18,41 +31,48 @@ information output:
 PS C:\> go version
 go version go1.24.1 windows/amd64
 ```
-The following commands assume that you have a terminal open in the root folder of the project.
 
-To download project dependencies, run:
+To download Go dependencies, run:
 ```shell
 go mod download
 ```
 
-To build/run the application, run:
+To run the application, run:
 ```shell
-go run main.go
+go run openko-gen.go
 ```
 
 ## CLI Arguments
 
 CLI Usage (-usage arg):
 ```
+------------------------------------------------------------------------------------------------------------------------
+                                                 OpenKO Code Generator
+------------------------------------------------------------------------------------------------------------------------
 Usage of openko-gen.exe:
   -clean
     	Cleans the output directory
-  -lang string
-    	Language to generate code for.  Valid options are: [Go] (default "Go")
-  -outputPath string
-    	Path to the directory where the generated code will be written (default "out")
-  -schemaPath string
-    	Path to the directory containing the schema files (default "jsonSchema")
+  -l string
+    	Language/library to generate code for.  Valid options are: [gorm] (default "gorm")
+  -list
+    	Lists supported language/library information
+  -o string
+    	Path to the directory where the generated code will be written. If unspecified uses the language default (see -list) (default "out")
+  -openkodb string
+    	Path to the openko-db project directory (default "./OpenKO-db/jsonSchema")
   -usage
     	Prints program usage information - will ignore all other arguments
 ```
 
 ## Output
-Currently, the only interface implemented is for the GORM library (openko-gorm). 
+-l gorm
+Description: Go Object Relational Mapping (gorm) model library; built for use in the kodb-util project
+Default Output: openko-gorm/
+Artifact Produced: openko-gorm
 
-## TODOs
-Things that would be good to idea in the near term:
-1. implement extending OdbcRecordSet and associated functions.  Maybe.  Current OdbcRecordSet behavior seems to be for specific queries rather than generalized.  Would require thought-out proposal and discussion with larger group
 
-## Out of Scope
-1. C++ file formatter: Looked into this a bit. There doesn't appear to be any stand-alone utilities to run .editorconfig against a file, and .editorconfig properties are largely IDE-dependent.
+## Building the utility program
+To build `openko-gen.exe`, run the following command in this directory:
+```shell
+go build
+```
