@@ -38,9 +38,26 @@ var (
 	ModelList = []Model{}
 )
 
-func SetDbNames(loginDbName string, gameDbName string, logDbName string) {
+func SetDbNameByType(dbType DbType, dbName string) {
+	switch dbType {
+	case LOGIN:
+		_loginDbName = dbName
+	case GAME:
+		_gameDbName = dbName
+	case LOG:
+		_logDbName = dbName
+	}
+}
+
+func SetLoginDbName(loginDbName string) {
 	_loginDbName = loginDbName
+}
+
+func SetGameDbName(gameDbName string) {
 	_gameDbName = gameDbName
+}
+
+func SetLogDbName(logDbName string) {
 	_logDbName = logDbName
 }
 
