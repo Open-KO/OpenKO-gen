@@ -2,16 +2,16 @@
 
 ## Project Overview
 The goal of this project is to:
-* Create a full json-schema representation of the OpenKO dbo schema (see `OpenKO-db/jsonSchema` TODO Repo URL)
+* Create a full json-schema representation of the OpenKO dbo schema (see [OpenKO-db/jsonSchema](https://github.com/Open-KO/OpenKO-db/tree/master/jsonSchema))
 * Generate a Go Object Relational Mapping (GORM) Model library from the jsonSchema with additional helper functions
 * Implement everything via interfaces, such that the interfaces can be implemented for other languages/use-cases as desired
 
 ## Dependencies
 The following commands assume that you have a terminal open in the root folder of the project.
 
-The `OpenKO-db` and `openko-gorm` projects are submodules:
+The [OpenKO-db](https://github.com/Open-KO/OpenKO-db) and [OpenKO-gorm](https://github.com/Open-KO/OpenKO-gorm) projects are submodules:
 * `OpenKO-db`: Schema definitions in OpenKO-db/jsonSchema are used to generate code.
-* `openko-gorm`: The `gorm` language option generates the gorm model library.  This library is imported to `kodb-util` to perform import/export tasks
+* `OpenKO-gorm`: The `gorm` language option generates the gorm model library.  This library is imported to [kodb-util](https://github.com/Open-KO/kodb-util) to perform import/export tasks
 
 
 To fetch submodule updates:

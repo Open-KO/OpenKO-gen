@@ -2,7 +2,7 @@ package gormGen
 
 import (
 	"fmt"
-	"github.com/kenner2/OpenKO-db/jsonSchema"
+	"github.com/Open-KO/OpenKO-db/jsonSchema"
 	cgHelpers "openko-gen/gormGen/cgHelpers/kogen"
 	"openko-gen/igenerator"
 	"openko-gen/utils"

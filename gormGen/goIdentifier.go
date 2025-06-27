@@ -2,8 +2,8 @@ package gormGen
 
 import (
 	"fmt"
-	"github.com/kenner2/OpenKO-db/jsonSchema"
-	"github.com/kenner2/OpenKO-db/jsonSchema/enums/tsql"
+	"github.com/Open-KO/OpenKO-db/jsonSchema"
+	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/tsql"
 )
 
 const optionalFmt = "*%s"

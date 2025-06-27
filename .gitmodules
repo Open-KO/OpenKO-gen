@@ -1,7 +1,8 @@
 [submodule "OpenKO-db"]
 	path = OpenKO-db
-	url = https://github.com/kenner2/OpenKO-db.git
-	branch = feature/templates
-[submodule "openko-gorm"]
-	path = openko-gorm
-	url = https://github.com/kenner2/openko-gorm
+	url = https://github.com/Open-KO/OpenKO-db.git
+	branch = master
+[submodule "OpenKO-gorm"]
+	path = OpenKO-gorm
+	url = https://github.com/Open-KO/OpenKO-gorm
+	branch = main

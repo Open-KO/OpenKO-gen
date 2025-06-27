@@ -3,7 +3,7 @@ package utils
 import (
 	"encoding/json"
 	"fmt"
-	"github.com/kenner2/OpenKO-db/jsonSchema"
+	"github.com/Open-KO/OpenKO-db/jsonSchema"
 	"os"
 	"path/filepath"
 )
