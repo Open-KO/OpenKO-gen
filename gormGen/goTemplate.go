@@ -83,6 +83,15 @@ func (this *GoTemplate) Generate() (string, error) {
 	// identifier is used to assign the correct Go type from the columns' tsql.TsqlType
 	identifier := GoIdentifier{}
 
+	pkMap := make(map[string]bool)
+	for i := range this.def.Indexes {
+		if this.def.Indexes[i].IsPrimaryKey {
+			for j := range this.def.Indexes[i].Columns {
+				pkMap[this.def.Indexes[i].Columns[j]] = true
+			}
+		}
+	}
+
 	// fieldStrBuilder will collect all of our generated model struct fields
 	fieldStrBuilder := strings.Builder{}
 	for i := range this.def.Columns {
@@ -123,7 +132,7 @@ func (this *GoTemplate) Generate() (string, error) {
 		gormTags := []string{fmt.Sprintf(gormTagColumnNameFmt, field.Name)}
 		gormTags = append(gormTags, fmt.Sprintf(gormTypeTagFmt, gormType))
 
-		if field.IsPrimaryKey {
+		if _, ok := pkMap[field.Name]; ok {
 			gormTags = append(gormTags, gormTagPrimaryKey)
 		}
 		if !field.AllowNull {

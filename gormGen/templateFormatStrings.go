@@ -106,9 +106,10 @@ func (this %[6]s) %[2]s(%[3]s) (%[1]s) {
 	// 1. Table Name
 	// 2. Column Defs
 	// 3. Primary Key Def (optional)
-	// 4. Constraints
+	// 4. Indexes
+	// 5. Constraints
 	// createTableTemplateFmt generates the SQL to create model object table
-	createTableTemplateFmt = `"CREATE TABLE [%[1]s] (\n%[2]s\n%[3]s\n)\nGO\n%[4]s"`
+	createTableTemplateFmt = `"CREATE TABLE [%[1]s] (\n%[2]s%[3]s\n)\nGO\n%[4]s%[5]s"`
 
 	// 1. Column Name
 	// 2. Column Type
@@ -116,10 +117,11 @@ func (this %[6]s) %[2]s(%[3]s) (%[1]s) {
 	// createColumnTemplateFmt generates a column definition for the create table query
 	createColumnTemplateFmt = `\t[%[1]s] %[2]s%[3]s`
 
-	// 1. PK Columns, string wrapped and csv
-	// 2. Table Name
+	// 1. PK Name
+	// 2. Clustering
+	// 3. PK Columns, string wrapped and csv
 	// primaryKeyFmt generates the primary key constraint
-	primaryKeyFmt = `\tCONSTRAINT [PK_%[2]s] PRIMARY KEY (%[1]s)`
+	primaryKeyFmt = `\n\tCONSTRAINT [%[1]s] PRIMARY KEY %[2]s (%[3]s)`
 
 	// 1. Table name
 	// 2. Column name
@@ -127,10 +129,12 @@ func (this %[6]s) %[2]s(%[3]s) (%[1]s) {
 	// defaultValFmt generates a default value constraint
 	defaultValFmt = `ALTER TABLE [%[1]s] ADD CONSTRAINT [DF_%[1]s_%[2]s] DEFAULT %[3]s FOR [%[2]s]\nGO\n`
 
-	// 1. Key name
-	// 2. Columns, string wrapped and csv
-	// uniqueKeyFmt generates a unique index constraint
-	uniqueKeyFmt = `\tCONSTRAINT [%[1]s] UNIQUE (%[2]s)`
+	// 1. [Unique] [(NON)CLUSTERED]
+	// 2. Index name
+	// 3. Table name
+	// 4. Columns, string wrapped and csv
+	// indexFormat generates a unique index constraint
+	indexFormat = `CREATE %[1]s INDEX [%[2]s] ON [%[3]s] (%[4]s)\nGO\n`
 
 	// 1. ClassName
 	// 2. SelectQuery.Columns.Name list, csv

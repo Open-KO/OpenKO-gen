@@ -13,12 +13,8 @@ The `OpenKO-db` and `openko-gorm` projects are submodules:
 * `OpenKO-db`: Schema definitions in OpenKO-db/jsonSchema are used to generate code.
 * `openko-gorm`: The `gorm` language option generates the gorm model library.  This library is imported to `kodb-util` to perform import/export tasks
 
-To get the submodule for the first time:
-```shell
-git submodule update --init --recursive
-```
 
-To get updates after the submodule has been pulled for the first time:
+To fetch submodule updates:
 ```shell
 git submodule update --recursive --remote
 ```

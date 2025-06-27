@@ -17,12 +17,12 @@ import (
 )
 
 /** Enums **/
-type DbType uint8
+type DbType string
 
 const (
-	LOGIN DbType = 0
-	GAME  DbType = 1
-	LOG   DbType = 2
+	ACCOUNT DbType = "ACCOUNT"
+	GAME    DbType = "GAME"
+	LOG     DbType = "LOG"
 )
 
 /** End Enums **/
@@ -40,7 +40,7 @@ var (
 
 func SetDbNameByType(dbType DbType, dbName string) {
 	switch dbType {
-	case LOGIN:
+	case ACCOUNT:
 		_loginDbName = dbName
 	case GAME:
 		_gameDbName = dbName
@@ -63,7 +63,7 @@ func SetLogDbName(logDbName string) {
 
 func GetDatabaseName(dbType DbType) string {
 	switch dbType {
-	case LOGIN:
+	case ACCOUNT:
 		return _loginDbName
 	case GAME:
 		return _gameDbName

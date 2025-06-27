@@ -9,7 +9,6 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
-	"sort"
 	"strings"
 )
 
@@ -69,14 +68,14 @@ func GenerateGo(clean bool) (err error) {
 		// we lead with underscores to avoid potential collisions
 		dbNbrConst := fmt.Sprintf(databaseConstFmt, validSchemas[i].ClassName)
 		tableNameConst := fmt.Sprintf(tableNameConstFmt, validSchemas[i].ClassName)
-		template.AddConst(dbNbrConst, fmt.Sprintf(decFmt, validSchemas[i].Database))
+		template.AddConst(dbNbrConst, fmt.Sprintf(strWrapFmt, validSchemas[i].Database))
 		template.AddConst(tableNameConst, fmt.Sprintf(strWrapFmt, validSchemas[i].Name))
 
 		// Generate a GetDatabaseName() func
 		dbNameDef := igenerator.MethodDef{
 			ReturnType:  "string",
 			Name:        "GetDatabaseName",
-			Body:        fmt.Sprintf("\treturn GetDatabaseName(DbType(%s))", dbNbrConst),
+			Body:        fmt.Sprintf("\treturn GetDatabaseName(%s)", dbNbrConst),
 			Description: "Returns the table's database name",
 		}
 		template.AddMethod(dbNameDef)
@@ -223,7 +222,7 @@ func generateInsertTemplateBody(def jsonSchema.TableDef) string {
 func generateInsertHeaderBody(def jsonSchema.TableDef) string {
 	columnNames := []string{}
 	for i := range def.Columns {
-		columnNames = append(columnNames, def.Columns[i].Name)
+		columnNames = append(columnNames, fmt.Sprintf("[%s]", def.Columns[i].Name))
 	}
 
 	// 1. Table Name
@@ -256,64 +255,45 @@ func generateInsertDataBody(def jsonSchema.TableDef) string {
 // generateCreateTableBody generates the function body of GetCreateTableString()
 func generateCreateTableBody(def jsonSchema.TableDef) string {
 	columnDefs := []string{}
-	primaryKeys := []string{}
 	constraints := []string{}
-	uniqueKeys := make(map[string][]string)
 	for i := range def.Columns {
 		opt := ""
 		if !def.Columns[i].AllowNull {
 			opt = " NOT NULL"
 		}
 		columnDefs = append(columnDefs, fmt.Sprintf(createColumnTemplateFmt, def.Columns[i].Name, def.Columns[i].GormType(), opt))
-		if def.Columns[i].IsPrimaryKey {
-			primaryKeys = append(primaryKeys, fmt.Sprintf(`[%s]`, def.Columns[i].Name))
-		}
 		if def.Columns[i].DefaultValue != "" {
 			constraints = append(constraints, fmt.Sprintf(defaultValFmt, def.Name, def.Columns[i].Name, def.Columns[i].DefaultValue))
-		}
-		if def.Columns[i].Unique != "" {
-			if _, ok := uniqueKeys[def.Columns[i].Unique]; !ok {
-				uniqueKeys[def.Columns[i].Unique] = []string{def.Columns[i].Name}
-			} else {
-				uniqueKeys[def.Columns[i].Unique] = append(uniqueKeys[def.Columns[i].Unique], def.Columns[i].Name)
-			}
 		}
 	}
 
 	pkDef := ""
-	if len(primaryKeys) > 0 {
-		pkDef = fmt.Sprintf(primaryKeyFmt, strings.Join(primaryKeys, ", "), def.Name)
-	}
-
-	if len(uniqueKeys) > 0 {
-		sorted := make([]string, 0, len(uniqueKeys))
-		for k := range uniqueKeys {
-			sorted = append(sorted, k)
+	indexes := []string{}
+	for i := range def.Indexes {
+		// format columns
+		cols := []string{}
+		for j := range def.Indexes[i].Columns {
+			cols = append(cols, fmt.Sprintf("[%s]", def.Indexes[i].Columns[j]))
 		}
-		sort.Strings(sorted)
-
-		uniques := []string{}
-		for i := range sorted {
-			keyCols := []string{}
-			for j := range uniqueKeys[sorted[i]] {
-				keyCols = append(keyCols, fmt.Sprintf(`[%s]`, uniqueKeys[sorted[i]][j]))
+		colList := strings.Join(cols, ", ")
+		if def.Indexes[i].IsPrimaryKey {
+			pkDef = fmt.Sprintf(primaryKeyFmt, def.Indexes[i].Name, def.Indexes[i].Type, colList)
+		} else {
+			ixType := def.Indexes[i].Type
+			if def.Indexes[i].IsUnique {
+				ixType = "UNIQUE " + ixType
 			}
-			cols := strings.Join(keyCols, ", ")
-			uniques = append(uniques, fmt.Sprintf(uniqueKeyFmt, sorted[i], cols))
+			indexes = append(indexes, fmt.Sprintf(indexFormat, ixType, def.Indexes[i].Name, def.Name, colList))
 		}
-		// add with PK
-		if len(pkDef) != 0 {
-			pkDef += `,\n`
-		}
-		pkDef += strings.Join(uniques, `,\n`)
 	}
+	indexOut := strings.Join(indexes, "")
 
 	constr := ""
 	if len(constraints) > 0 {
 		constr = strings.Join(constraints, "")
 	}
 
-	createTableSql := fmt.Sprintf(createTableTemplateFmt, def.Name, strings.Join(columnDefs, `,\n`), pkDef, constr)
+	createTableSql := fmt.Sprintf(createTableTemplateFmt, def.Name, strings.Join(columnDefs, `,\n`), pkDef, indexOut, constr)
 	return wrapQueryWithUseDbFmt(createTableSql)
 }
 
