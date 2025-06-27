@@ -1,0 +1,67 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"openko-gen/gormGen"
+	"strings"
+)
+
+const (
+	appTitle    = "OpenKO Code Generator"
+	outputWidth = 120
+)
+
+func printHeaderRow() {
+	fmt.Println(fmt.Sprintf("%s", strings.Repeat("-", outputWidth)))
+}
+
+func main() {
+	printHeaderRow()
+	titlePad := (outputWidth - len(appTitle)) / 2
+	fmt.Println(fmt.Sprintf("%[2]s%[1]s%[2]s", appTitle, strings.Repeat(" ", titlePad)))
+	printHeaderRow()
+
+	args := getArgs()
+	// if -usage was specified, print the args doc and exit
+	if args.Usage {
+		flag.Usage()
+		return
+	}
+
+	if args.List {
+		// print language information table
+		printLanguageList()
+		return
+	}
+
+	var genErr error
+	switch args.Lang {
+	case gormLibrary:
+		// generate Go source for all the schemas
+		genErr = gormGen.GenerateGo(args.Clean)
+	/*case cppLang:
+	// generate c++ source for all the schemas
+	genErr = cppGenerator.GenerateCpp()*/
+	default:
+		fmt.Printf("Unsupported language: %s\n", args.Lang)
+		return
+	}
+
+	if genErr != nil {
+		fmt.Println(genErr)
+		return
+	}
+
+	fmt.Println("OpenKO Code Generator completed successfully")
+}
+
+func printLanguageList() {
+	fmt.Print("\nSupported Language Information\n\n")
+	for langName := range langInfo {
+		fmt.Printf(" %s\n", langName)
+		fmt.Printf("\tDescription: %s\n", langInfo[langName].Description)
+		fmt.Printf("\tDefault Output: %s\n", langInfo[langName].DefaultOut)
+		fmt.Printf("\tArtifact Produced: %s\n", langInfo[langName].ArtifactProduced)
+	}
+}

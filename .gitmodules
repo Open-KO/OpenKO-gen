@@ -1,0 +1,8 @@
+[submodule "OpenKO-db"]
+	path = OpenKO-db
+	url = https://github.com/Open-KO/OpenKO-db.git
+	branch = master
+[submodule "OpenKO-gorm"]
+	path = OpenKO-gorm
+	url = https://github.com/Open-KO/OpenKO-gorm
+	branch = main

@@ -1,9 +1,8 @@
-package properties
+package cppGenerator
 
-import (
-	"fmt"
-	"github.com/santhosh-tekuri/jsonschema/v5"
-)
+/*
+// This was done as a prototype using jsonSchema; it would need to be refactored using
+// jsonSchema/tableDef.go, if a use case for it arises.
 
 const optionalFmt = "Nullable<%s>"
 
@@ -75,3 +74,4 @@ func (this CppIdentifier) GetType(name string, property jsonschema.Schema, isOpt
 
 	return "", fmt.Errorf("Failed to parse type in CppIdentifier.GetType for property: %v", name)
 }
+*/
