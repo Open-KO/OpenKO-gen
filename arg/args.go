@@ -1,4 +1,4 @@
-package main
+package arg
 
 import (
 	"flag"
@@ -7,7 +7,7 @@ import (
 )
 
 const (
-	gormLibrary = "gorm"
+	GormLibrary = "gorm"
 
 	// a C++ generator was prototyped but is not officially supported at this time; no valid usecase has been identified yet
 	// would need updating from prototype as the jsonSchema approach has been updated to simplify type identification
@@ -15,14 +15,14 @@ const (
 )
 
 var (
-	supportedLangs = []string{gormLibrary /*, cppLang*/}
-	langInfo       map[string]LangInfo
+	supportedLangs = []string{GormLibrary /*, cppLang*/}
+	LangInfoMap    map[string]LangInfo
 )
 
 func init() {
-	langInfo = make(map[string]LangInfo)
-	langInfo[gormLibrary] = LangInfo{
-		Name:             gormLibrary,
+	LangInfoMap = make(map[string]LangInfo)
+	LangInfoMap[GormLibrary] = LangInfo{
+		Name:             GormLibrary,
 		Description:      "Go Object Relational Mapping (gorm) model library; built for use in the kodb-util project",
 		DefaultOut:       utils.GormLibOut,
 		ArtifactProduced: "openko-gorm",
@@ -45,11 +45,11 @@ type Args struct {
 	List       bool
 }
 
-func getArgs() (a Args) {
+func GetArgs() (a Args) {
 	clean := flag.Bool("clean", false, "Cleans the output directory")
 	schemaPath := flag.String("openkodb", utils.DefaultSchemaDir, "Path to the openko-db project directory")
 	outputPath := flag.String("o", utils.DefaultOutputDir, "Path to the directory where the generated code will be written. If unspecified uses the language default (see -list)")
-	lang := flag.String("l", gormLibrary, fmt.Sprintf("Language/library to generate code for.  Valid options are: %v", supportedLangs))
+	lang := flag.String("l", GormLibrary, fmt.Sprintf("Language/library to generate code for.  Valid options are: %v", supportedLangs))
 	list := flag.Bool("list", false, "Lists supported language/library information")
 	usage := flag.Bool("usage", false, "Prints program usage information - will ignore all other arguments")
 
@@ -71,7 +71,7 @@ func getArgs() (a Args) {
 	if outputPath != nil {
 		a.OutputPath = *outputPath
 		if a.OutputPath == utils.DefaultOutputDir {
-			langOut, ok := langInfo[a.Lang]
+			langOut, ok := LangInfoMap[a.Lang]
 			if ok {
 				a.OutputPath = langOut.DefaultOut
 			}

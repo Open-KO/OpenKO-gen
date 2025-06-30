@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"fmt"
+	"openko-gen/arg"
 	"openko-gen/gormGen"
 	"strings"
 )
@@ -22,7 +23,7 @@ func main() {
 	fmt.Println(fmt.Sprintf("%[2]s%[1]s%[2]s", appTitle, strings.Repeat(" ", titlePad)))
 	printHeaderRow()
 
-	args := getArgs()
+	args := arg.GetArgs()
 	// if -usage was specified, print the args doc and exit
 	if args.Usage {
 		flag.Usage()
@@ -37,7 +38,7 @@ func main() {
 
 	var genErr error
 	switch args.Lang {
-	case gormLibrary:
+	case arg.GormLibrary:
 		// generate Go source for all the schemas
 		genErr = gormGen.GenerateGo(args.Clean)
 	/*case cppLang:
@@ -58,10 +59,10 @@ func main() {
 
 func printLanguageList() {
 	fmt.Print("\nSupported Language Information\n\n")
-	for langName := range langInfo {
+	for langName := range arg.LangInfoMap {
 		fmt.Printf(" %s\n", langName)
-		fmt.Printf("\tDescription: %s\n", langInfo[langName].Description)
-		fmt.Printf("\tDefault Output: %s\n", langInfo[langName].DefaultOut)
-		fmt.Printf("\tArtifact Produced: %s\n", langInfo[langName].ArtifactProduced)
+		fmt.Printf("\tDescription: %s\n", arg.LangInfoMap[langName].Description)
+		fmt.Printf("\tDefault Output: %s\n", arg.LangInfoMap[langName].DefaultOut)
+		fmt.Printf("\tArtifact Produced: %s\n", arg.LangInfoMap[langName].ArtifactProduced)
 	}
 }
