@@ -16,7 +16,7 @@ The [OpenKO-db](https://github.com/Open-KO/OpenKO-db) and [OpenKO-gorm](https://
 
 To fetch submodule updates:
 ```shell
-git submodule update --recursive --remote
+git submodule update --init --recursive --remote
 ```
 
 This utility is programmed with Go 1.24+.  You'll need to install the language if you want to build locally. See https://go.dev/doc/install
