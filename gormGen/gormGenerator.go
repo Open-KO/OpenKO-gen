@@ -258,8 +258,11 @@ func generateCreateTableBody(def jsonSchema.TableDef) string {
 	constraints := []string{}
 	for i := range def.Columns {
 		opt := ""
+		if def.Columns[i].CollationName != nil && *def.Columns[i].CollationName != "" {
+			opt = fmt.Sprintf(" COLLATE %s", *def.Columns[i].CollationName)
+		}
 		if !def.Columns[i].AllowNull {
-			opt = " NOT NULL"
+			opt += " NOT NULL"
 		}
 		columnDefs = append(columnDefs, fmt.Sprintf(createColumnTemplateFmt, def.Columns[i].Name, def.Columns[i].GormType(), opt))
 		if def.Columns[i].DefaultValue != "" {

@@ -62,7 +62,11 @@ type %[1]s struct
 	gormTagPrimaryKey      string = "primaryKey"
 	gormTagDefaultValueFmt string = "default:%[1]s"
 	gormTagNotNULL         string = "not null"
-	gormTypeTagFmt         string = "type:%[1]s"
+
+	// 1. Type
+	// 2. Collation
+	gormTypeTagFmt string = "type:%[1]s%[2]s"
+
 	// unimplemented
 	// gormTagAutoIncrement   string = "autoIncrement"
 	// gormTagUnique string = "unique"

@@ -130,7 +130,11 @@ func (this *GoTemplate) Generate() (string, error) {
 
 		// generate gorm tag
 		gormTags := []string{fmt.Sprintf(gormTagColumnNameFmt, field.Name)}
-		gormTags = append(gormTags, fmt.Sprintf(gormTypeTagFmt, gormType))
+		collation := ""
+		if field.CollationName != nil && *field.CollationName != "" {
+			collation = fmt.Sprintf(" COLLATE %s", *field.CollationName)
+		}
+		gormTags = append(gormTags, fmt.Sprintf(gormTypeTagFmt, gormType, collation))
 
 		if _, ok := pkMap[field.Name]; ok {
 			gormTags = append(gormTags, gormTagPrimaryKey)
