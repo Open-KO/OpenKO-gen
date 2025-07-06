@@ -40,8 +40,8 @@ func GenerateGo(clean bool) (err error) {
 		}
 	}
 
-	// setupOutputDir creates the output directory if it doesn't exist
-	err = setupOutDir()
+	// create the output directory if it doesn't exist
+	err = utils.SetupOutDir(kogenPackageOutDir)
 	if err != nil {
 		return err
 	}
@@ -174,11 +174,6 @@ func GenerateGo(clean bool) (err error) {
 
 	fmt.Println("Go code generated successfully")
 	return nil
-}
-
-// setupOutputDir creates the output directory if it doesn't exist
-func setupOutDir() error {
-	return os.MkdirAll(filepath.Join(utils.OutputDir, kogenPackageOutDir), os.ModePerm)
 }
 
 // writeCgHelpers writes the hand-coded helper file from cgHelpers/kogen to the output folder
