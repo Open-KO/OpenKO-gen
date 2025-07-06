@@ -18,8 +18,8 @@ const (
 
 	// 1. ClassName
 	// 2. Property defs
-	modelFileFmt = `#include <unordered_set>
-#include <string>
+	modelFileFmt = `#include <unordered_set>;
+#include <string>;
 
 //class %[1]sBinder;
 
@@ -31,5 +31,5 @@ public:
 };
 `
 	// 1: header file to include
-	includeFmt = `#include "%[1]s"\n`
+	includeFmt = `#include "%[1]s";\n`
 )
