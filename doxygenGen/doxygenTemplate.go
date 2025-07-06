@@ -7,8 +7,8 @@ import (
 )
 
 const (
-	fileNameFmt           string = "%[1]s.cpp"
-	primaryModuleFileName        = "doxygen_module.cpp"
+	fileNameFmt           string = "%[1]s.ixx"
+	primaryModuleFileName        = "doxygen_module.ixx"
 )
 
 type DoxygenTemplate struct {

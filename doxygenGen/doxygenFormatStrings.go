@@ -13,7 +13,7 @@ const (
 	// 1: partition file name
 	// 2: file contents
 	// partitionModuleFmt is the template for a module partition
-	partitionModuleFmt = `module doxygen_model:%[1]s;
+	partitionModuleFmt = `export module doxygen_model:%[1]s;
 %[2]s`
 
 	// 1. ClassName
@@ -23,7 +23,7 @@ const (
 
 //class %[1]sBinder;
 
-class %[1]s 
+export class %[1]s 
 {
 public:
 //	using BinderType = %[1]sBinder;
