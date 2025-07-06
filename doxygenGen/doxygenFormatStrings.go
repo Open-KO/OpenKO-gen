@@ -12,16 +12,18 @@ const (
 
 	// 1: partition file name
 	// 2: file contents
+	// 3: includes
 	// partitionModuleFmt is the template for a module partition
-	partitionModuleFmt = `export module doxygen_model:%[1]s;
+	partitionModuleFmt = `module;
+
+%[3]s
+export module doxygen_model:%[1]s;
+
 %[2]s`
 
 	// 1. ClassName
 	// 2. Property defs
-	modelFileFmt = `#include <unordered_set>;
-#include <string>;
-
-//class %[1]sBinder;
+	modelFileFmt = `//class %[1]sBinder;
 
 export class %[1]s 
 {
@@ -31,5 +33,5 @@ public:
 };
 `
 	// 1: header file to include
-	includeFmt = `#include "%[1]s";\n`
+	includeFmt = "#include %[1]s\n"
 )

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Open-KO/OpenKO-db/jsonSchema"
 	"openko-gen/igenerator"
+	"strings"
 )
 
 const (
@@ -40,11 +41,16 @@ func (d *DoxygenTemplate) Generate() (string, error) {
 		return "", fmt.Errorf("className not set")
 	}
 
+	includes := []string{}
+	for include := range d.includes {
+		includes = append(includes, include)
+	}
+
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	//identifier := CppIdentifier{}
 
 	fileStr := fmt.Sprintf(modelFileFmt, d.def.ClassName)
-	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr), nil
+	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, "")), nil
 }
 
 func (d *DoxygenTemplate) GetFileName() string {

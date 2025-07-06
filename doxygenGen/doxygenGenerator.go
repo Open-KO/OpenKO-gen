@@ -46,6 +46,9 @@ func Generate(clean bool) (err error) {
 		template := DoxygenTemplate{}
 		template.def = validSchemas[i]
 
+		template.AddInclude("<unordered_set>")
+		template.AddInclude("<string>")
+
 		// TODO: full impl
 
 		// generate template
