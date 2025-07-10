@@ -1,17 +1,23 @@
-package doxygenGen
+package cppGen
 
 import (
 	"fmt"
 	"github.com/Open-KO/OpenKO-db/jsonSchema"
 	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/dbType"
+	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/profile"
 	"openko-gen/igenerator"
 	"sort"
 	"strings"
 )
 
 const (
-	fileNameFmt           string = "%[1]s.ixx"
-	primaryModuleFileName        = "doxygen_module.ixx"
+	fileNameFmt string = "%[1]s.ixx"
+
+	// 1. export name
+	// 2. Model or Binder
+	primaryModuleFileName = "%s.ixx"
+	moduleSuffixModel     = "Model"
+	moduleSuffixBinder    = "Binder"
 )
 
 type DoxygenTemplate struct {
@@ -20,6 +26,9 @@ type DoxygenTemplate struct {
 	includes       map[string]bool
 	consts         map[string]string
 	additionalCode []string
+	namespace      string
+	moduleSuffix   string
+	moduleDef      ModuleDef
 }
 
 func (d *DoxygenTemplate) SetTableDef(def jsonSchema.TableDef) {
@@ -61,6 +70,26 @@ func (d *DoxygenTemplate) Generate() (string, error) {
 	if d.def.ClassName == "" {
 		return "", fmt.Errorf("className not set")
 	}
+
+	fullClassDef, err := d.GenerateModelClass()
+	if err != nil {
+		return "", err
+	}
+
+	var includes []string
+	for include := range d.includes {
+		includes = append(includes, include)
+	}
+	// includes is built from an unordered hash map
+	// sort the includes alphabetically so they don't cause diffs gen-to-gen
+	sort.Strings(includes)
+
+	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.namespace)
+	fileStr := fmt.Sprintf(modelFileFmt, d.def.ClassName, fullClassDef, binderNs, d.namespace)
+	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, ""), d.moduleSuffix), nil
+}
+
+func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
@@ -134,14 +163,6 @@ func (d *DoxygenTemplate) Generate() (string, error) {
 		fieldStrBuilder.WriteString(fmt.Sprintf(memberFmt, doxygen.String(), cppType, field.PropertyName, initializer, enum))
 	}
 
-	var includes []string
-	for include := range d.includes {
-		includes = append(includes, include)
-	}
-	// includes is built from an unordered hash map
-	// sort the includes alphabetically so they don't cause diffs gen-to-gen
-	sort.Strings(includes)
-
 	methods := strings.Builder{}
 	for i := range d.methods {
 		if i > 0 {
@@ -153,10 +174,10 @@ func (d *DoxygenTemplate) Generate() (string, error) {
 	doxygen := strings.Builder{}
 	doxygen.WriteString(fmt.Sprintf("\t/// \\brief [%s] %s\n", d.def.Name, d.def.Description))
 	doxygen.WriteString(fmt.Sprintf("\t/// \\class %s\n", d.def.ClassName))
-	doxygen.WriteString(fmt.Sprintf(getDbTypeXRefFmt(d.def.Database), d.def.Name))
+	doxygen.WriteString(fmt.Sprintf(getDbTypeXRefFmt(d.def.Database), d.def.Name, d.def.Description))
 
-	fileStr := fmt.Sprintf(modelFileFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String())
-	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, "")), nil
+	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.namespace)
+	return fmt.Sprintf(modelClassFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String(), binderNs), nil
 }
 
 func (d *DoxygenTemplate) GenerateBinders() (string, error) {
@@ -164,8 +185,27 @@ func (d *DoxygenTemplate) GenerateBinders() (string, error) {
 		return "", fmt.Errorf("className not set")
 	}
 
+	classStr, err := d.GenerateBinderClass()
+	if err != nil {
+		return "", err
+	}
+
+	var includes []string
+	for include := range d.includes {
+		includes = append(includes, include)
+	}
+	// includes is built from an unordered hash map
+	// sort the includes alphabetically so they don't cause diffs gen-to-gen
+	sort.Strings(includes)
+
+	fileStr := fmt.Sprintf(binderFileFmt, classStr, d.namespace)
+	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, ""), d.moduleSuffix), nil
+}
+
+func (d *DoxygenTemplate) GenerateBinderClass() (string, error) {
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
+	modelNs := d.moduleDef.namespace
 
 	// fieldStrBuilder will collect all of our generated model class members
 	fieldStrBuilder := strings.Builder{}
@@ -181,28 +221,28 @@ func (d *DoxygenTemplate) GenerateBinders() (string, error) {
 		}
 
 		// add binding method
+		propBindBody := ""
+		if field.AllowNull {
+			_type := strings.Replace(cppType, "std::optional<", "", 1)
+			_type = strings.Replace(_type, ">", "", 1)
+			propBindBody = fmt.Sprintf(funcOptionalPropBindingFmt, _type, field.PropertyName)
+		} else {
+			propBindBody = fmt.Sprintf(funcPropBindingFmt, cppType, field.PropertyName)
+		}
 		propBindDef := igenerator.MethodDef{
 			IsStatic:   true,
 			ReturnType: "void",
 			Params: [][]string{
-				{fmt.Sprintf("%s&", d.def.ClassName), "m"},
-				{"nanodbc::result&", "result"},
+				{fmt.Sprintf("%s::%s&", modelNs, d.def.ClassName), "m"},
+				{"const nanodbc::result&", "result"},
 				{"short", "colIndex"},
 			},
 			Name:        fmt.Sprintf("Bind%s", field.PropertyName),
-			Body:        fmt.Sprintf(funcPropBindingFmt, cppType, field.PropertyName),
+			Body:        propBindBody,
 			Description: fmt.Sprintf("Binds a result's column to %s", field.PropertyName),
 		}
 		d.AddMethod(propBindDef)
 	}
-
-	var includes []string
-	for include := range d.includes {
-		includes = append(includes, include)
-	}
-	// includes is built from an unordered hash map
-	// sort the includes alphabetically so they don't cause diffs gen-to-gen
-	sort.Strings(includes)
 
 	methods := strings.Builder{}
 	for i := range d.methods {
@@ -212,21 +252,11 @@ func (d *DoxygenTemplate) GenerateBinders() (string, error) {
 		methods.WriteString(d.methods[i])
 	}
 
-	doxygen := strings.Builder{}
-	doxygen.WriteString(fmt.Sprintf("\t/// \\brief %s %s\n", d.def.Name, d.def.Description))
-	doxygen.WriteString(fmt.Sprintf("\t/// \\class %s\n", d.def.ClassName))
-	doxygen.WriteString(fmt.Sprintf(getDbTypeXRefFmt(d.def.Database), d.def.Name))
-
-	fileStr := fmt.Sprintf(binderFileFmt, d.def.ClassName, methods.String())
-	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, "")), nil
+	return fmt.Sprintf(binderClassFmt, d.def.ClassName, methods.String(), modelNs), nil
 }
 
 func (d *DoxygenTemplate) GetFileName() string {
-	return fmt.Sprintf(fileNameFmt, d.def.ClassName)
-}
-
-func (d *DoxygenTemplate) GetBindingFileName() string {
-	return fmt.Sprintf(fileNameFmt, fmt.Sprintf("%sBinder", d.def.ClassName))
+	return fmt.Sprintf(fileNameFmt, fmt.Sprintf("%s-%s", d.moduleSuffix, d.def.ClassName))
 }
 
 func (d *DoxygenTemplate) AddConst(name string, value string) {
@@ -251,11 +281,11 @@ func isEnumType(cppType string) bool {
 func getDbTypeXRefFmt(databaseType dbType.DbType) string {
 	switch databaseType {
 	case dbType.ACCOUNT:
-		return "\t/// \\xrefitem acctdb \"Account Database\" \"Account Database\" %s"
+		return "\t/// \\xrefitem acctdb \"Account Database\" \"Account Database\" %s %s"
 	case dbType.GAME:
-		return "\t/// \\xrefitem gamedb \"Game Database\" \"Game Database\" %s"
+		return "\t/// \\xrefitem gamedb \"Game Database\" \"Game Database\" %s %s"
 	case dbType.LOG:
-		return "\t/// \\xrefitem logdb \"Log Database\" \"Log Database\" %s"
+		return "\t/// \\xrefitem logdb \"Log Database\" \"Log Database\" %s %s"
 	}
 
 	return ""

@@ -8,16 +8,12 @@ import (
 )
 
 const (
-	GormLibrary    = "gorm"
-	DoxygenLibrary = "doxygen"
-
-	// a C++ generator was prototyped but is not officially supported at this time; no valid usecase has been identified yet
-	// would need updating from prototype as the jsonSchema approach has been updated to simplify type identification
-	cppLang = "c++"
+	GormLibrary = "gorm"
+	CppLibrary  = "cpp"
 )
 
 var (
-	supportedLangs = []string{GormLibrary, DoxygenLibrary}
+	supportedLangs = []string{GormLibrary, CppLibrary}
 	LangInfoMap    map[string]LangInfo
 )
 
@@ -29,10 +25,10 @@ func init() {
 		DefaultOut:       utils.GormLibOut,
 		ArtifactProduced: "openko-gorm",
 	}
-	LangInfoMap[DoxygenLibrary] = LangInfo{
-		Name:             DoxygenLibrary,
-		Description:      "C++ model library with doxygen-compliant comments for generating database documentation",
-		DefaultOut:       utils.DoxygenLibOut,
+	LangInfoMap[CppLibrary] = LangInfo{
+		Name:             CppLibrary,
+		Description:      "C++ model and nanodbc binder modules with doxygen-compliant documentation",
+		DefaultOut:       utils.CppLibOut,
 		ArtifactProduced: "doxygen-db",
 	}
 }

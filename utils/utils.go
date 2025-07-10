@@ -13,7 +13,7 @@ const (
 	DefaultSchemaDir = "./OpenKO-db/jsonSchema"
 	schemaExtPattern = "*.json"
 	GormLibOut       = "openko-gorm/"
-	DoxygenLibOut    = "doxygen-db/"
+	CppLibOut        = "doxygen-db/"
 )
 
 var (
@@ -63,5 +63,5 @@ func GetSchemaFileNames(schemaDir string) (fileNames []string, err error) {
 
 // SetupOutputDir creates an output directory if it doesn't exist
 func SetupOutDir(packageDir string) error {
-	return os.MkdirAll(filepath.Join(OutputDir, packageDir), os.ModePerm)
+	return os.MkdirAll(packageDir, os.ModePerm)
 }

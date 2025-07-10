@@ -6,6 +6,6 @@
 	path = OpenKO-gorm
 	url = https://github.com/Open-KO/OpenKO-gorm
 	branch = main
-[submodule "doxygen-db"]
-	path = doxygen-db
-	url = https://github.com/Open-KO/doxygen-db.git
+[submodule "OpenKO-db-modules"]
+	path = OpenKO-db-modules
+	url = https://github.com/Open-KO/OpenKO-db-modules.git

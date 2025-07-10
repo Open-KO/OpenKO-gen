@@ -1,4 +1,4 @@
-package doxygenGen
+package cppGen
 
 import (
 	"fmt"
@@ -18,7 +18,7 @@ var (
 
 func init() {
 	TSqlTypeMapping = make(map[tsql.TSqlType]string)
-	TSqlTypeMapping[tsql.TinyInt] = "uint8_t"
+	TSqlTypeMapping[tsql.TinyInt] = "int16_t"
 	TSqlTypeMapping[tsql.SmallInt] = "int16_t"
 	TSqlTypeMapping[tsql.Int] = "int32_t"
 	TSqlTypeMapping[tsql.BigInt] = "int64_t"

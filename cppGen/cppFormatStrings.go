@@ -1,65 +1,92 @@
-package doxygenGen
+package cppGen
 
 const (
 	// 1: import export list
+	// 2: Model or Binder
 	// TODO: \mainpage doc?
 	// primaryModuleFmt is the template for the primary module file
-	primaryModuleFmt = `export module FullModel;
+	primaryModuleFmt = `export module %[2]s;
 
 %[1]s`
 
 	// 1: partition module to export
 	exportImportFmt = "export import :%[1]s;\n"
 
-	// 1: partition file name
+	// 1: ClassName
 	// 2: file contents
 	// 3: includes
+	// 4: Model or Binder
 	// partitionModuleFmt is the template for a module partition
 	partitionModuleFmt = `module;
 
 %[3]s
-export module FullModel:%[1]s;
+export module %[4]s:%[1]s;
 
 %[2]s`
 
 	// 1. ClassName
+	// 2. Class contents
+	// 3. binder namespace
+	// 4. model namespace
+	modelFileFmt = `namespace %[3]s
+{
+	export class %[1]s;
+}
+
+namespace %[4]s
+{
+%[2]s
+}
+`
+	// 1. namespace
+	// 2. wrapped content
+	namespaceFmt = `
+namespace %[1]s
+{
+%[2]s
+}
+`
+
+	// 1. ClassName
 	// 2. Member defs
 	// 3. Method defs
-	// 4. Class-level doxygen
-	modelFileFmt = `namespace model
-{
-	class %[1]sBinder;
-	
-%[4]s
+	// 4. Class-level Doxygen block
+	// 5. binder namespace
+	modelClassFmt = `%[4]s
 	export class %[1]s 
 	{
 	/// \publicsection
 	public:
-		using BinderType = %[1]sBinder;
+		using BinderType = %[5]s::%[1]s;
 %[2]s
 %[3]s
 
-	};
+	};`
+
+	// 1. Class contents
+	// 2. Binder namespace
+	binderFileFmt = `import Model;
+
+namespace %[2]s
+{%[1]s
 }
 `
 
 	// 1. ClassName
 	// 2. Method defs
-	binderFileFmt = `namespace model
-{
-	/// \brief generated column binder for the %[1]s model, using nanodbc
-	export class %[1]sBinder
+	// 3. model namespace
+	binderClassFmt = `
+	/// \brief generated nanodbc column binder for %[3]s::%[1]s
+	export class %[1]s
 	{
 	/// \publicsection
 	public:
-		typedef void (*BindColumnFunction_t)(%[1]s& m, const nanodbc::result& result, short colIndex);
+		typedef void (*BindColumnFunction_t)(%[3]s::%[1]s& m, const nanodbc::result& result, short colIndex);
 
 		using BindingsMapType = std::unordered_map<std::string, BindColumnFunction_t>;
 %[2]s
 
-	};
-}
-`
+	};`
 
 	// 1: header file to include
 	includeFmt = "#include %[1]s\n"
@@ -83,7 +110,7 @@ export module FullModel:%[1]s;
 		enum class %[1]s
 		{
 %[2]s
-		}`
+		};`
 
 	// 1. description
 	// 2. modifiers (static, inline, etc)
@@ -125,10 +152,15 @@ export module FullModel:%[1]s;
 	// 2. Class Name
 	// 3. Property Name
 	bindingFmt = `
-				{"%[1]s", &%[2]sBinder::Bind%[3]s}`
+				{"%[1]s", &%[2]s::Bind%[3]s}`
 
 	// 1. cppType
 	// 2. PropertyName
 	funcPropBindingFmt = `
 			result.get_ref<%[1]s>(colIndex, m.%[2]s);`
+
+	// 1. cppType, optional stripped
+	// 2. PropertyName
+	funcOptionalPropBindingFmt = `
+			m.%[2]s = result.get<%[1]s>(colIndex);`
 )

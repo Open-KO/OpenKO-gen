@@ -41,7 +41,7 @@ func GenerateGo(clean bool) (err error) {
 	}
 
 	// create the output directory if it doesn't exist
-	err = utils.SetupOutDir(kogenPackageOutDir)
+	err = utils.SetupOutDir(filepath.Join(utils.OutputDir, kogenPackageOutDir))
 	if err != nil {
 		return err
 	}

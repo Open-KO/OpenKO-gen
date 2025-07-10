@@ -4,7 +4,7 @@ import (
 	"flag"
 	"fmt"
 	"openko-gen/arg"
-	"openko-gen/doxygenGen"
+	"openko-gen/cppGen"
 	"openko-gen/gormGen"
 	"strings"
 )
@@ -42,9 +42,9 @@ func main() {
 	case arg.GormLibrary:
 		// generate Go source for all the schemas
 		genErr = gormGen.GenerateGo(args.Clean)
-	case arg.DoxygenLibrary:
+	case arg.CppLibrary:
 		// generate doxygen-complaint c++ for all schemas
-		genErr = doxygenGen.Generate(args.Clean)
+		genErr = cppGen.Generate(args.Clean)
 	default:
 		fmt.Printf("Unsupported language: %s\n", args.Lang)
 		return
