@@ -13,7 +13,7 @@ const (
 	DefaultSchemaDir = "./OpenKO-db/jsonSchema"
 	schemaExtPattern = "*.json"
 	GormLibOut       = "openko-gorm/"
-	CppLibOut        = "doxygen-db/"
+	CppLibOut        = "OpenKO-db-modules/"
 )
 
 var (

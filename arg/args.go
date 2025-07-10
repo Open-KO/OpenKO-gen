@@ -29,7 +29,7 @@ func init() {
 		Name:             CppLibrary,
 		Description:      "C++ model and nanodbc binder modules with doxygen-compliant documentation",
 		DefaultOut:       utils.CppLibOut,
-		ArtifactProduced: "doxygen-db",
+		ArtifactProduced: "OpenKO-db-modules",
 	}
 }
 

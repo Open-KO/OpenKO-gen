@@ -48,7 +48,7 @@ var (
 )
 
 // Generate generates c++ code files for each schema in OpenKO-db/jsonSchema,
-// and writes the result to the output dir (default: ./doxygen-db/)
+// and writes the result to the output dir (default: ./OpenKO-db-modules/)
 // It then generates additional profiles from profile.Profiles[]
 func Generate(clean bool) (err error) {
 	// Read and bind all *.json files in jsonSchema
