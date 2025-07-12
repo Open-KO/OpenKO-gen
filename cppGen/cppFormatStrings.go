@@ -61,6 +61,7 @@ namespace %[4]s
 	// 2. Binder namespace
 	// 3. model namespace
 	binderFileFmt = `import %[3]sModel;
+import BinderUtil;
 
 namespace %[2]s
 {%[1]s
@@ -181,6 +182,10 @@ namespace %[2]s
 	// 3. Property name
 	funcPropBindingUpCastFmt = `
 			m.%[3]s = static_cast<%[1]s>(result.get<%[2]s>(colIndex));`
+
+	// 1. Property Name
+	funcPropBindingDateCastFmt = `
+			m.%[1]s = binderUtil::CTimeFromDbTime(result.get<nanodbc::timestamp>(colIndex));`
 
 	// 1. cppType, optional stripped.  upscale and static cast back Tinyint to SmallInt
 	// 2. PropertyName

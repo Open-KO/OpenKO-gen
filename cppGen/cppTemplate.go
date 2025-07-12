@@ -231,6 +231,8 @@ func (d *DoxygenTemplate) GenerateBinderClass() (string, error) {
 		if field.Type == tsql.TinyInt {
 			upcast := "int16_t"
 			propBindBody = fmt.Sprintf(funcPropBindingUpCastFmt, _type, upcast, field.PropertyName)
+		} else if strings.Contains(cppType, "std::time_t") {
+			propBindBody = fmt.Sprintf(funcPropBindingDateCastFmt, field.PropertyName)
 		} else if field.AllowNull {
 			propBindBody = fmt.Sprintf(funcPropBindingGetFmt, _type, field.PropertyName)
 		} else {
