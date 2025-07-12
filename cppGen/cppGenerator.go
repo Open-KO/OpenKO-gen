@@ -188,7 +188,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		// Generate a DbType func
 		dbTypeDef := igenerator.MethodDef{
 			IsStatic:    true,
-			ReturnType:  "const modelUtil::DbType&",
+			ReturnType:  "const modelUtil::DbType",
 			Name:        "DbType",
 			Body:        fmt.Sprintf(funcDbTypeFmt, filterDef.Database),
 			Description: "Returns the associated database type for the table",

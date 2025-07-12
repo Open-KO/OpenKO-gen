@@ -89,5 +89,9 @@ func getInitializer(cppType string) string {
 
 func stripOptional(cppType string) string {
 	_type := strings.Replace(cppType, "std::optional<", "", 1)
-	return strings.Replace(_type, ">", "", 1)
+	if len(cppType) == len(_type) {
+		return cppType
+	} else {
+		return strings.Replace(_type, ">", "", 1)
+	}
 }
