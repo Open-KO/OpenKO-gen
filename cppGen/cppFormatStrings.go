@@ -28,20 +28,14 @@ export module %[4]s:%[1]s;
 	// 2. Class contents
 	// 3. binder namespace
 	// 4. model namespace
-	modelFileFmt = `namespace %[3]s
+	modelFileFmt = `import ModelUtil;
+
+namespace %[3]s
 {
 	export class %[1]s;
 }
 
 namespace %[4]s
-{
-%[2]s
-}
-`
-	// 1. namespace
-	// 2. wrapped content
-	namespaceFmt = `
-namespace %[1]s
 {
 %[2]s
 }
@@ -65,7 +59,8 @@ namespace %[1]s
 
 	// 1. Class contents
 	// 2. Binder namespace
-	binderFileFmt = `import Model;
+	// 3. model namespace
+	binderFileFmt = `import %[3]sModel;
 
 namespace %[2]s
 {%[1]s
@@ -138,8 +133,15 @@ namespace %[2]s
 			return columnNames;`
 
 	funcDbTypeFmt = `
-			static const std::string dbType = "%[1]s";
-			return dbType;`
+			return modelUtil::DbType::%[1]s;`
+
+	// 1: list of column names in the pk, string wrapped and CSV
+	funcPrimaryKeyFmt = `
+			static const std::vector<std::string> primaryKey =
+			{
+				%[1]s
+			};
+			return primaryKey;`
 
 	// 1 Binding map entries
 	funcColumnBindingsFmt = `
@@ -147,6 +149,15 @@ namespace %[2]s
 			{%[1]s
 			};
 			return bindingsMap;`
+
+	// 1. PK Property Name
+	funcMapKeySingleFmt = `
+			return %[1]s;`
+
+	// 1. tuple def
+	// 2. tuple values, csv
+	funcMapKeyMultiFmt = `
+			return %[1]s{%[2]s};`
 
 	// 1. Column Name
 	// 2. Class Name
@@ -159,8 +170,26 @@ namespace %[2]s
 	funcPropBindingFmt = `
 			result.get_ref<%[1]s>(colIndex, m.%[2]s);`
 
-	// 1. cppType, optional stripped
+	// 1. cppType
 	// 2. PropertyName
+	funcPropBindingGetFmt = `
+				m.%[2]s = result.get<%[1]s>(colIndex);`
+
+	// 1. original type
+	// 2. upcast type
+	// 3. Property name
+	funcPropBindingUpCastFmt = `
+			m.%[3]s = static_cast<%[1]s>(result.get<%[2]s>(colIndex));`
+
+	// 1. cppType, optional stripped.  upscale and static cast back Tinyint to SmallInt
+	// 2. PropertyName
+	// 3. proper binding func
 	funcOptionalPropBindingFmt = `
-			m.%[2]s = result.get<%[1]s>(colIndex);`
+			if (result.is_null(colIndex))
+			{
+				m.%[2]s.reset();
+			}
+			else
+			{%[3]s
+			}`
 )

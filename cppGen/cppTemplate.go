@@ -5,6 +5,7 @@ import (
 	"github.com/Open-KO/OpenKO-db/jsonSchema"
 	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/dbType"
 	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/profile"
+	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/tsql"
 	"openko-gen/igenerator"
 	"sort"
 	"strings"
@@ -13,11 +14,10 @@ import (
 const (
 	fileNameFmt string = "%[1]s.ixx"
 
-	// 1. export name
-	// 2. Model or Binder
+	// 1. {ns}Model or {ns}Binder
 	primaryModuleFileName = "%s.ixx"
-	moduleSuffixModel     = "Model"
-	moduleSuffixBinder    = "Binder"
+	moduleSuffixModelFmt  = "%sModel"
+	moduleSuffixBinderFmt = "%sBinder"
 )
 
 type DoxygenTemplate struct {
@@ -84,7 +84,7 @@ func (d *DoxygenTemplate) Generate() (string, error) {
 	// sort the includes alphabetically so they don't cause diffs gen-to-gen
 	sort.Strings(includes)
 
-	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.namespace)
+	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.moduleDef.namespace)
 	fileStr := fmt.Sprintf(modelFileFmt, d.def.ClassName, fullClassDef, binderNs, d.namespace)
 	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, ""), d.moduleSuffix), nil
 }
@@ -176,7 +176,7 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 	doxygen.WriteString(fmt.Sprintf("\t/// \\class %s\n", d.def.ClassName))
 	doxygen.WriteString(fmt.Sprintf(getDbTypeXRefFmt(d.def.Database), d.def.Name, d.def.Description))
 
-	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.namespace)
+	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.moduleDef.namespace)
 	return fmt.Sprintf(modelClassFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String(), binderNs), nil
 }
 
@@ -198,14 +198,14 @@ func (d *DoxygenTemplate) GenerateBinders() (string, error) {
 	// sort the includes alphabetically so they don't cause diffs gen-to-gen
 	sort.Strings(includes)
 
-	fileStr := fmt.Sprintf(binderFileFmt, classStr, d.namespace)
+	fileStr := fmt.Sprintf(binderFileFmt, classStr, d.namespace, d.moduleDef.OutDir)
 	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, ""), d.moduleSuffix), nil
 }
 
 func (d *DoxygenTemplate) GenerateBinderClass() (string, error) {
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
-	modelNs := d.moduleDef.namespace
+	modelNs := fmt.Sprintf(profile.ModelNsFmt, d.moduleDef.namespace)
 
 	// fieldStrBuilder will collect all of our generated model class members
 	fieldStrBuilder := strings.Builder{}
@@ -221,13 +221,18 @@ func (d *DoxygenTemplate) GenerateBinderClass() (string, error) {
 		}
 
 		// add binding method
-		propBindBody := ""
-		if field.AllowNull {
-			_type := strings.Replace(cppType, "std::optional<", "", 1)
-			_type = strings.Replace(_type, ">", "", 1)
-			propBindBody = fmt.Sprintf(funcOptionalPropBindingFmt, _type, field.PropertyName)
+		var propBindBody string
+		_type := stripOptional(cppType)
+		if field.Type == tsql.TinyInt {
+			upcast := "int16_t"
+			propBindBody = fmt.Sprintf(funcPropBindingUpCastFmt, _type, upcast, field.PropertyName)
+		} else if field.AllowNull {
+			propBindBody = fmt.Sprintf(funcPropBindingGetFmt, _type, field.PropertyName)
 		} else {
-			propBindBody = fmt.Sprintf(funcPropBindingFmt, cppType, field.PropertyName)
+			propBindBody = fmt.Sprintf(funcPropBindingFmt, _type, field.PropertyName)
+		}
+		if field.AllowNull {
+			propBindBody = fmt.Sprintf(funcOptionalPropBindingFmt, _type, field.PropertyName, propBindBody)
 		}
 		propBindDef := igenerator.MethodDef{
 			IsStatic:   true,

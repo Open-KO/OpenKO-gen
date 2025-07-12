@@ -23,7 +23,7 @@ func init() {
 		Name:             GormLibrary,
 		Description:      "Go Object Relational Mapping (gorm) model library; built for use in the kodb-util project",
 		DefaultOut:       utils.GormLibOut,
-		ArtifactProduced: "openko-gorm",
+		ArtifactProduced: "OpenKO-gorm",
 	}
 	LangInfoMap[CppLibrary] = LangInfo{
 		Name:             CppLibrary,

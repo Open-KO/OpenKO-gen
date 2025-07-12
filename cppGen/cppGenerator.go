@@ -95,9 +95,14 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		return err
 	}
 
+	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
+	identifier := CppIdentifier{}
+
+	moduleSuffixModel := fmt.Sprintf(moduleSuffixModelFmt, moduleDef.OutDir)
+	moduleSuffixBinder := fmt.Sprintf(moduleSuffixBinderFmt, moduleDef.OutDir)
+
 	partitionModules := []string{}
 	for i := range validSchemas {
-		fmt.Print(fmt.Sprintf("generating doxygen c++ for: %s", validSchemas[i].Name))
 		isIncluded := moduleDef.namespace == profile.All
 		exportDef := jsonSchema.Export{}
 		for j := 0; !isIncluded && j < len(validSchemas[i].Exports); j++ {
@@ -110,13 +115,25 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 			// the export isn't defined for this schema, skip processing it
 			continue
 		}
+		fmt.Println(fmt.Sprintf("generating c++ for: %s", validSchemas[i].Name))
+
+		pk := jsonSchema.IndexDef{}
+		for x := range validSchemas[i].Indexes {
+			if validSchemas[i].Indexes[x].IsPrimaryKey {
+				pk = validSchemas[i].Indexes[x]
+				break
+			}
+		}
 
 		filterDef := validSchemas[i]
 		// trim down to the export columns for profile-specific exports
 		if moduleDef.namespace != profile.All && len(exportDef.Columns) > 0 {
 			filterDef.Columns = []jsonSchema.Column{}
+
 			for x := range validSchemas[i].Columns {
-				if slices.Contains(exportDef.Columns, validSchemas[i].Columns[x].Name) {
+				// include a column if it's part of the export or part of the PK
+				if slices.Contains(exportDef.Columns, validSchemas[i].Columns[x].Name) ||
+					slices.Contains(pk.Columns, validSchemas[i].Columns[x].Name) {
 					filterDef.Columns = append(filterDef.Columns, validSchemas[i].Columns[x])
 				}
 			}
@@ -128,7 +145,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		// structure and generate a code file
 		template := DoxygenTemplate{}
 		template.def = filterDef
-		template.namespace = string(moduleDef.namespace)
+		template.namespace = fmt.Sprintf(profile.ModelNsFmt, moduleDef.namespace)
 		template.moduleSuffix = moduleSuffixModel
 		template.AddInclude("<unordered_set>")
 		template.AddInclude("<string>")
@@ -171,12 +188,79 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		// Generate a DbType func
 		dbTypeDef := igenerator.MethodDef{
 			IsStatic:    true,
-			ReturnType:  "const std::string&",
+			ReturnType:  "const modelUtil::DbType&",
 			Name:        "DbType",
 			Body:        fmt.Sprintf(funcDbTypeFmt, filterDef.Database),
 			Description: "Returns the associated database type for the table",
 		}
 		template.AddMethod(dbTypeDef)
+
+		if len(pk.Columns) > 0 {
+			// Generate a PrimaryKeyColumns func
+			pkNames := strings.Builder{}
+			pkPropDefs := []jsonSchema.Column{}
+			for j := range pk.Columns {
+				if j > 0 {
+					pkNames.WriteString(", ")
+				}
+				pkNames.WriteString(fmt.Sprintf(`"%s"`, pk.Columns[j]))
+
+				// add associated property name to list
+				for x := range filterDef.Columns {
+					if filterDef.Columns[x].Name == pk.Columns[j] {
+						pkPropDefs = append(pkPropDefs, filterDef.Columns[x])
+					}
+				}
+			}
+			pkColumnsDef := igenerator.MethodDef{
+				IsStatic:    true,
+				ReturnType:  "const std::vector<std::string>&",
+				Name:        "PrimaryKey",
+				Body:        fmt.Sprintf(funcPrimaryKeyFmt, pkNames.String()),
+				Description: "Returns the columns associated with the table's Primary Key",
+			}
+			template.AddMethod(pkColumnsDef)
+
+			// Generate a MapKey() func
+			retType := "void"
+			body := ""
+			if len(pkPropDefs) == 1 {
+				cppType, err := identifier.GetType(pkPropDefs[0])
+				if err != nil {
+					return err
+				}
+
+				// A PK should never be optional, but for the sake of being safe
+				retType = stripOptional(cppType)
+				body = fmt.Sprintf(funcMapKeySingleFmt, pkPropDefs[0].PropertyName)
+			} else if len(pkPropDefs) > 1 {
+				template.AddInclude("<tuple>")
+				retType = "std::tuple<"
+				vals := ""
+				for j := range pkPropDefs {
+					if j > 0 {
+						retType += ", "
+						vals += ", "
+					}
+					cppType, err := identifier.GetType(pkPropDefs[j])
+					if err != nil {
+						return err
+					}
+					_type := stripOptional(cppType)
+					retType += _type
+					vals += pkPropDefs[j].PropertyName
+				}
+				retType += ">"
+				body = fmt.Sprintf(funcMapKeyMultiFmt, retType, vals)
+			}
+			mapKeyDef := igenerator.MethodDef{
+				ReturnType:  fmt.Sprintf("const %s&", retType),
+				Name:        "MapKey",
+				Body:        body,
+				Description: "Returns a value for use in map keys based on the table's primary key",
+			}
+			template.AddMethod(mapKeyDef)
+		}
 
 		// generate template
 		templateStr, tErr := template.Generate()
@@ -190,6 +274,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 			err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 			return err
 		}
+		fmt.Println(fmt.Sprintf("... written to: %s", outFile))
 
 		// binder functions
 		// Generate a GetColumnBindings func

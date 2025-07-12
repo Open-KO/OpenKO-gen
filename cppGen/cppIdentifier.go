@@ -18,7 +18,7 @@ var (
 
 func init() {
 	TSqlTypeMapping = make(map[tsql.TSqlType]string)
-	TSqlTypeMapping[tsql.TinyInt] = "int16_t"
+	TSqlTypeMapping[tsql.TinyInt] = "uint8_t"
 	TSqlTypeMapping[tsql.SmallInt] = "int16_t"
 	TSqlTypeMapping[tsql.Int] = "int32_t"
 	TSqlTypeMapping[tsql.BigInt] = "int64_t"
@@ -85,4 +85,9 @@ func getInitializer(cppType string) string {
 	default:
 		return ""
 	}
+}
+
+func stripOptional(cppType string) string {
+	_type := strings.Replace(cppType, "std::optional<", "", 1)
+	return strings.Replace(_type, ">", "", 1)
 }
