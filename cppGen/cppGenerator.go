@@ -188,6 +188,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		// Generate a DbType func
 		dbTypeDef := igenerator.MethodDef{
 			IsStatic:    true,
+			IsPure:      true,
 			ReturnType:  "const modelUtil::DbType",
 			Name:        "DbType",
 			Body:        fmt.Sprintf(funcDbTypeFmt, filterDef.Database),
@@ -222,7 +223,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 			template.AddMethod(pkColumnsDef)
 
 			// Generate a MapKey() func
-			retType := "void"
+			retType := ""
 			body := ""
 			if len(pkPropDefs) == 1 {
 				cppType, err := identifier.GetType(pkPropDefs[0])
@@ -231,7 +232,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 				}
 
 				// A PK should never be optional, but for the sake of being safe
-				retType = stripOptional(cppType)
+				retType = fmt.Sprintf(constRefFmt, stripOptional(cppType))
 				body = fmt.Sprintf(funcMapKeySingleFmt, pkPropDefs[0].PropertyName)
 			} else if len(pkPropDefs) > 1 {
 				template.AddInclude("<tuple>")
@@ -246,7 +247,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 					if err != nil {
 						return err
 					}
-					_type := stripOptional(cppType)
+					_type := fmt.Sprintf(constRefFmt, stripOptional(cppType))
 					retType += _type
 					vals += pkPropDefs[j].PropertyName
 				}
@@ -254,7 +255,8 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 				body = fmt.Sprintf(funcMapKeyMultiFmt, retType, vals)
 			}
 			mapKeyDef := igenerator.MethodDef{
-				ReturnType:  fmt.Sprintf("const %s&", retType),
+				IsPure:      true,
+				ReturnType:  retType,
 				Name:        "MapKey",
 				Body:        body,
 				Description: "Returns a value for use in map keys based on the table's primary key",

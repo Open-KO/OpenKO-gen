@@ -49,13 +49,18 @@ func (d *DoxygenTemplate) AddMethod(def igenerator.MethodDef) {
 		modifiers = "static "
 	}
 
+	pure := ""
+	if def.IsPure {
+		pure = " const"
+	}
+
 	// 1. description
 	// 2. modifiers (static, inline, etc)
 	// 3. return type
 	// 4. function name
 	// 5. params, csv
 	// 6. function body
-	d.methods = append(d.methods, fmt.Sprintf(methodFmt, def.Description, modifiers, def.ReturnType, def.Name, params, def.Body))
+	d.methods = append(d.methods, fmt.Sprintf(methodFmt, def.Description, modifiers, def.ReturnType, def.Name, params, def.Body, pure))
 }
 
 func (d *DoxygenTemplate) AddInclude(s string) {

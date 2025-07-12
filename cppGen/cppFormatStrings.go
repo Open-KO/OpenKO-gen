@@ -113,9 +113,10 @@ namespace %[2]s
 	// 4. function name
 	// 5. params, csv
 	// 6. function body
+	// 7. pure
 	methodFmt = `
 		/// \brief %[1]s
-		%[2]s%[3]s %[4]s(%[5]s)
+		%[2]s%[3]s %[4]s(%[5]s)%[7]s
 		{%[6]s
 		}`
 
@@ -192,4 +193,7 @@ namespace %[2]s
 			else
 			{%[3]s
 			}`
+
+	// 1. Type
+	constRefFmt = "const %s&"
 )
