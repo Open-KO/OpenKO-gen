@@ -56,7 +56,7 @@ func (this CppIdentifier) GetType(property jsonSchema.Column) (cppType string, e
 		return "", fmt.Errorf("cppIdentifier.GetType - unsupported type: %s", property.Type)
 	}
 
-	if property.IsBlobType() && property.Type != tsql.Text {
+	if property.IsHexProtect {
 		cppType = "std::vector<uint8_t>"
 	}
 
