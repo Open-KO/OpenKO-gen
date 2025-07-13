@@ -62,8 +62,7 @@ namespace %[4]s
 	// 3. column list
 	unionArrayFmt = `
 		union
-		{
-%[1]s
+		{%[1]s
 %[2]s
 
 			struct
