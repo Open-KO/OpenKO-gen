@@ -56,6 +56,10 @@ func (this CppIdentifier) GetType(property jsonSchema.Column) (cppType string, e
 		return "", fmt.Errorf("cppIdentifier.GetType - unsupported type: %s", property.Type)
 	}
 
+	if property.IsBlobType() && property.Type != tsql.Text {
+		cppType = "std::vector<uint8_t>"
+	}
+
 	// IsNoArray is a schema type that has a length but uses a data type that doesn't require it to be specified
 	// We're using vectors right now, so this whole format isn't needed
 	// if we want to implement MaxLength allocators for the vectors at some point in the future
