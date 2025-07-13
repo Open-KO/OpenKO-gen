@@ -152,12 +152,13 @@ enum class %[1]s
 			return tableName;`
 
 	// 1: list of column names, string wrapped and CSV
+	// 2: Static const name
 	funcColumnNamesFmt = `
-			static const std::unordered_set<std::string> columnNames =
+			static const std::unordered_set<std::string> %[2]s =
 			{
 				%[1]s
 			};
-			return columnNames;`
+			return %[2]s;`
 
 	funcDbTypeFmt = `
 			return modelUtil::DbType::%[1]s;`

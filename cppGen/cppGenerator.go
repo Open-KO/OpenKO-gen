@@ -180,10 +180,26 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 			IsStatic:    true,
 			ReturnType:  "const std::unordered_set<std::string>&",
 			Name:        "ColumnNames",
-			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(colNames, ", ")),
+			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(colNames, ", "), "columnNames"),
 			Description: "Returns a set of column names for the table",
 		}
 		template.AddMethod(colNameDef)
+
+		// Generate a BlobColumns() func
+		blobCols := []string{}
+		for j := range filterDef.Columns {
+			if filterDef.Columns[j].IsBlobType() {
+				blobCols = append(blobCols, fmt.Sprintf(`"%s"`, filterDef.Columns[j].Name))
+			}
+		}
+		blobColNameDef := igenerator.MethodDef{
+			IsStatic:    true,
+			ReturnType:  "const std::unordered_set<std::string>&",
+			Name:        "BlobColumns",
+			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(blobCols, ", "), "blobColumns"),
+			Description: "Returns a set of blob column names for the table",
+		}
+		template.AddMethod(blobColNameDef)
 
 		// Generate a DbType func
 		dbTypeDef := igenerator.MethodDef{
