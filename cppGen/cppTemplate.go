@@ -7,6 +7,7 @@ import (
 	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/profile"
 	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/tsql"
 	"openko-gen/igenerator"
+	"openko-gen/utils"
 	"regexp"
 	"sort"
 	"strings"
@@ -30,6 +31,14 @@ type DoxygenTemplate struct {
 	namespace      string
 	moduleSuffix   string
 	moduleDef      ModuleDef
+}
+
+type AggregateUnion struct {
+	union         jsonSchema.Union
+	firstColName  string
+	columnPattern string
+	cppType       string
+	defs          []jsonSchema.Column
 }
 
 func (d *DoxygenTemplate) SetTableDef(def jsonSchema.TableDef) {
@@ -103,22 +112,12 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 	// fieldStrBuilder will collect all of our generated model class members
 	fieldStrBuilder := strings.Builder{}
 
-	type AggregateUnion struct {
-		union     *jsonSchema.Union
-		firstName string
-		lastName  string
-		cppType   string
-		defs      []*jsonSchema.Column
-	}
-
-	unionAggregates := make(map[string]*AggregateUnion)
+	unionAggregates := make(map[string]AggregateUnion)
 	fieldToUnionPatterns := make(map[string]string)
-
 	for i := range d.def.Unions {
-		union := &d.def.Unions[i]
-		unionAggregates[union.ColumnPattern] = &AggregateUnion{
-			union: union,
-			defs:  []*jsonSchema.Column{},
+		unionAggregates[d.def.Unions[i].ColumnPattern] = AggregateUnion{
+			union: d.def.Unions[i],
+			defs:  []jsonSchema.Column{},
 		}
 	}
 
@@ -140,35 +139,6 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 			return "", err
 		}
 
-		// does the field column name match any union patterns?
-		for pattern, unionAggregate := range unionAggregates {
-			matched, err := regexp.Match(pattern, []byte(field.Name))
-			if err != nil {
-				return "", err
-			}
-			if matched {
-				unionAggregate.defs = append(unionAggregate.defs, field)
-				unionAggregate.cppType = cppType
-
-				if len(unionAggregate.firstName) == 0 {
-					unionAggregate.firstName = field.Name
-				}
-
-				unionAggregate.lastName = field.Name
-				fieldToUnionPatterns[field.Name] = pattern
-			}
-		}
-
-	}
-
-	for i := range d.def.Columns {
-		field := &d.def.Columns[i]
-
-		cppType, err := identifier.GetType(*field)
-		if err != nil {
-			return "", err
-		}
-
 		// add type-specific imports as needed
 		// we store includes in a map; duplicates are prevented
 		if strings.Contains(cppType, "int") {
@@ -180,13 +150,44 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 			d.AddInclude("<optional>")
 		}
 
+		// does the field column name match any union patterns?
+		for pattern, unionAggregate := range unionAggregates {
+			matched, err := regexp.Match(pattern, []byte(field.Name))
+			if err != nil {
+				return "", err
+			}
+			if matched {
+				unionAggregate.defs = append(unionAggregate.defs, *field)
+				unionAggregate.cppType = cppType
+
+				if len(unionAggregate.firstColName) == 0 {
+					unionAggregate.firstColName = field.Name
+				}
+
+				unionAggregate.columnPattern = field.Name
+				fieldToUnionPatterns[field.Name] = pattern
+			}
+			unionAggregates[pattern] = unionAggregate
+		}
+
+	}
+
+	for i := range d.def.Columns {
+		field := &d.def.Columns[i]
+
+		// skip union member definitions for all but the first column in the group
 		unionPattern, isUnionMember := fieldToUnionPatterns[field.Name]
-		if isUnionMember && unionAggregates[unionPattern].firstName != field.Name {
+		if isUnionMember && unionAggregates[unionPattern].firstColName != field.Name {
 			continue
 		}
 
 		if i > 0 {
 			fieldStrBuilder.WriteString("\n")
+		}
+
+		cppType, err := identifier.GetType(*field)
+		if err != nil {
+			return "", err
 		}
 
 		enum := ""
@@ -220,37 +221,31 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 			unionAggregate := unionAggregates[unionPattern]
 
 			colList := strings.Builder{}
-			cppType := unionAggregate.cppType
-			for _, currentField := range unionAggregate.defs {
-
+			for j := range unionAggregate.defs {
 				// subsequent members should be separated by a newline
 				if colList.Len() > 0 {
 					colList.WriteString("\n\n")
 				}
 
-				colList.WriteString(d.GenerateModelMember(*field, *currentField, cppType, hasEnums, enum, isUnionMember))
+				colList.WriteString(d.GenerateModelMember(*field, unionAggregate.defs[j], unionAggregate.cppType, hasEnums, enum, isUnionMember))
 			}
 
 			// create a doxygen block
 			doxygen := strings.Builder{}
 
-			unionArrayInitializer := getInitializer(cppType)
-			if len(unionArrayInitializer) > 0 {
-				unionArrayInitializer = " = {}"
-			}
+			doxygen.WriteString(utils.FormatAndIndentLines(indentLevel, unionArrayDoxygenFmt, unionAggregate.firstColName, unionAggregate.columnPattern, unionAggregate.union.PropertyName))
+			unionArrayInitializer := getInitializer(unionAggregate.cppType)
+			unionArrayDef := fmt.Sprintf(unionArrayDefFmt, unionAggregate.cppType, unionAggregate.union.PropertyName, len(unionAggregate.defs), unionArrayInitializer)
 
-			unionArrayDef := fmt.Sprintf(unionArrayDefFmt, cppType, unionAggregate.union.PropertyName, len(unionAggregate.defs), unionArrayInitializer)
-
-			doxygen.WriteString(formatAndIndentLines(indentLevel, unionArrayDoxygenFmt, unionAggregate.firstName, unionAggregate.lastName, unionAggregate.union.PropertyName))
 			fieldStrBuilder.WriteString(fmt.Sprintf(
 				unionArrayFmt,
 				doxygen.String(),
-				formatAndIndentLines(indentLevel+1, "%s", unionArrayDef),
-				formatAndIndentLines(indentLevel+2, "%s", colList.String())))
+				utils.FormatAndIndentLines(indentLevel+1, "%s", unionArrayDef),
+				utils.FormatAndIndentLines(indentLevel+2, "%s", colList.String())))
 		} else {
 			fieldStrBuilder.WriteString("\n")
 			member := d.GenerateModelMember(*field, *field, cppType, hasEnums, enum, isUnionMember)
-			fieldStrBuilder.WriteString(formatAndIndentLines(indentLevel, "%s", member))
+			fieldStrBuilder.WriteString(utils.FormatAndIndentLines(indentLevel, "%s", member))
 		}
 	}
 

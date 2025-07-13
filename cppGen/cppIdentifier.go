@@ -78,10 +78,8 @@ func getInitializer(cppType string) string {
 	}
 
 	switch cppType {
-	case "uint8_t", "int16_t", "int32_t", "int64_t", "double":
-		return " = 0"
-	case "float":
-		return " = 0.0f"
+	case "uint8_t", "int16_t", "int32_t", "int64_t", "double", "float":
+		return " = {}"
 	default:
 		return ""
 	}
@@ -94,21 +92,4 @@ func stripOptional(cppType string) string {
 	} else {
 		return strings.Replace(_type, ">", "", 1)
 	}
-}
-
-func getIndentation(level int) string {
-	return strings.Repeat("\t", level)
-}
-
-func formatAndIndentLines(level int, format string, args ...any) string {
-	indent := getIndentation(level)
-	formattedLine := fmt.Sprintf(format, args...)
-	lines := strings.Split(formattedLine, "\n")
-	for i, line := range lines {
-		if len(line) > 0 {
-			lines[i] = indent + line
-		}
-	}
-
-	return strings.Join(lines, "\n")
 }

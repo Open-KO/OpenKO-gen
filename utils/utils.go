@@ -6,6 +6,7 @@ import (
 	"github.com/Open-KO/OpenKO-db/jsonSchema"
 	"os"
 	"path/filepath"
+	"strings"
 )
 
 const (
@@ -64,4 +65,21 @@ func GetSchemaFileNames(schemaDir string) (fileNames []string, err error) {
 // SetupOutputDir creates an output directory if it doesn't exist
 func SetupOutDir(packageDir string) error {
 	return os.MkdirAll(packageDir, os.ModePerm)
+}
+
+func GetIndentation(level int) string {
+	return strings.Repeat("\t", level)
+}
+
+func FormatAndIndentLines(level int, format string, args ...any) string {
+	indent := GetIndentation(level)
+	formattedLine := fmt.Sprintf(format, args...)
+	lines := strings.Split(formattedLine, "\n")
+	for i := range lines {
+		if len(lines[i]) > 0 {
+			lines[i] = indent + lines[i]
+		}
+	}
+
+	return strings.Join(lines, "\n")
 }
