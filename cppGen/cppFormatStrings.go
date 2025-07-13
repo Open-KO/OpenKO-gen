@@ -46,16 +46,42 @@ namespace %[4]s
 	// 3. Method defs
 	// 4. Class-level Doxygen block
 	// 5. binder namespace
+	// 6. unions
 	modelClassFmt = `%[4]s
 	export class %[1]s 
 	{
 	/// \publicsection
 	public:
 		using BinderType = %[5]s::%[1]s;
-%[2]s
+%[2]s%[6]s
 %[3]s
 
 	};`
+
+	// 1. column list
+	// 2. union name def
+	// 3. doxygen block
+	unionFmt = `
+
+%[3]s
+		union
+		{
+			struct
+			{%[1]s
+			};
+			%[2]s
+		};`
+
+	// 1. cppType
+	// 2. Property Name
+	unionMemberFmt = `
+				%[1]s %[2]s;`
+
+	// 1. cppType
+	// 2. Union Name
+	// 3. Union Len
+	unionNameDefFmt = `
+			%[1]s %[2]s[%[3]d];`
 
 	// 1. Class contents
 	// 2. Binder namespace

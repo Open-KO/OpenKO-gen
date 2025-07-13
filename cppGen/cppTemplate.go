@@ -7,6 +7,7 @@ import (
 	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/profile"
 	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/tsql"
 	"openko-gen/igenerator"
+	"regexp"
 	"sort"
 	"strings"
 )
@@ -101,6 +102,11 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 
 	// fieldStrBuilder will collect all of our generated model class members
 	fieldStrBuilder := strings.Builder{}
+	unionType := make(map[string]string)
+	unionDefs := make(map[string][]string)
+	for i := range d.def.Unions {
+		unionDefs[d.def.Unions[i].ColumnPattern] = []string{}
+	}
 	for i := range d.def.Columns {
 		field := &d.def.Columns[i]
 		if i > 0 {
@@ -117,6 +123,18 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 		cppType, err := identifier.GetType(*field)
 		if err != nil {
 			return "", err
+		}
+
+		// does the field column name match any union patterns?
+		for pattern := range unionDefs {
+			matched, err := regexp.Match(pattern, []byte(field.Name))
+			if err != nil {
+				return "", err
+			}
+			if matched {
+				unionDefs[pattern] = append(unionDefs[pattern], field.Name)
+				unionType[pattern] = cppType
+			}
 		}
 
 		// add type-specific imports as needed
@@ -168,6 +186,20 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 		fieldStrBuilder.WriteString(fmt.Sprintf(memberFmt, doxygen.String(), cppType, field.PropertyName, initializer, enum))
 	}
 
+	unions := strings.Builder{}
+	for i := range d.def.Unions {
+		colList := strings.Builder{}
+		cppType := unionType[d.def.Unions[i].ColumnPattern]
+		for _, colName := range unionDefs[d.def.Unions[i].ColumnPattern] {
+			colList.WriteString(fmt.Sprintf(unionMemberFmt, cppType, colName))
+		}
+		unionNameDef := fmt.Sprintf(unionNameDefFmt, cppType, d.def.Unions[i].PropertyName, len(unionDefs[d.def.Unions[i].ColumnPattern]))
+		doxygen := strings.Builder{}
+		doxygen.WriteString(fmt.Sprintf("\t\t/// \\brief %s\n", d.def.Unions[i].Description))
+		doxygen.WriteString(fmt.Sprintf("\t\t/// \\union %s", d.def.Unions[i].PropertyName))
+		unions.WriteString(fmt.Sprintf(unionFmt, colList.String(), unionNameDef, doxygen.String()))
+	}
+
 	methods := strings.Builder{}
 	for i := range d.methods {
 		if i > 0 {
@@ -182,7 +214,7 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 	doxygen.WriteString(fmt.Sprintf(getDbTypeXRefFmt(d.def.Database), d.def.Name, d.def.Description))
 
 	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.moduleDef.namespace)
-	return fmt.Sprintf(modelClassFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String(), binderNs), nil
+	return fmt.Sprintf(modelClassFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String(), binderNs, unions.String()), nil
 }
 
 func (d *DoxygenTemplate) GenerateBinders() (string, error) {
