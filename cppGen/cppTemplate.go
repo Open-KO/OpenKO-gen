@@ -2,10 +2,10 @@ package cppGen
 
 import (
 	"fmt"
-	"github.com/Open-KO/OpenKO-db/jsonSchema"
-	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/dbType"
-	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/profile"
-	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/tsql"
+	"github.com/Open-KO/kodb-godef"
+	"github.com/Open-KO/kodb-godef/enums/dbType"
+	"github.com/Open-KO/kodb-godef/enums/profile"
+	"github.com/Open-KO/kodb-godef/enums/tsql"
 	"openko-gen/igenerator"
 	"openko-gen/utils"
 	"regexp"
