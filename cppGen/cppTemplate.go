@@ -106,6 +106,7 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 	type AggregateUnion struct {
 		union     *jsonSchema.Union
 		firstName string
+		lastName  string
 		cppType   string
 		defs      []*jsonSchema.Column
 	}
@@ -153,6 +154,7 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 					unionAggregate.firstName = field.Name
 				}
 
+				unionAggregate.lastName = field.Name
 				fieldToUnionPatterns[field.Name] = pattern
 			}
 		}
@@ -239,8 +241,7 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 
 			unionArrayDef := fmt.Sprintf(unionArrayDefFmt, cppType, unionAggregate.union.PropertyName, len(unionAggregate.defs), unionArrayInitializer)
 
-			doxygen.WriteString(formatAndIndentLines(indentLevel, "/// \\brief %s\n", unionAggregate.union.Description))
-			doxygen.WriteString(formatAndIndentLines(indentLevel, "/// \\union %s", unionAggregate.union.PropertyName))
+			doxygen.WriteString(formatAndIndentLines(indentLevel, unionArrayDoxygenFmt, unionAggregate.firstName, unionAggregate.lastName, unionAggregate.union.PropertyName))
 			fieldStrBuilder.WriteString(fmt.Sprintf(
 				unionArrayFmt,
 				doxygen.String(),

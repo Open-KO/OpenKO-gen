@@ -61,9 +61,9 @@ namespace %[4]s
 	// 2. union array def
 	// 3. column list
 	unionArrayFmt = `
-%[1]s
 		union
 		{
+%[1]s
 %[2]s
 
 			struct
@@ -77,6 +77,14 @@ namespace %[4]s
 	// 3. Union Array Len
 	// 4. initialized value
 	unionArrayDefFmt = "%[1]s %[2]s[%[3]d]%[4]s;"
+
+	// 1. first column name in array group
+	// 2. last column name in array group
+	// 3. property name
+	unionArrayDoxygenFmt = `
+	/// \\brief Union array grouping for columns [%[1]s] to [%[2]s]
+	///
+	// \\property %[3]s`
 
 	// 1. Class contents
 	// 2. Binder namespace
