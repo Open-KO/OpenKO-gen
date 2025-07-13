@@ -102,16 +102,30 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 
 	// fieldStrBuilder will collect all of our generated model class members
 	fieldStrBuilder := strings.Builder{}
-	unionType := make(map[string]string)
-	unionDefs := make(map[string][]string)
-	for i := range d.def.Unions {
-		unionDefs[d.def.Unions[i].ColumnPattern] = []string{}
+
+	type AggregateUnion struct {
+		union     *jsonSchema.Union
+		firstName string
+		cppType   string
+		defs      []*jsonSchema.Column
 	}
+
+	unionAggregates := make(map[string]*AggregateUnion)
+	fieldToUnionPatterns := make(map[string]string)
+
+	for i := range d.def.Unions {
+		union := &d.def.Unions[i]
+		unionAggregates[union.ColumnPattern] = &AggregateUnion{
+			union: union,
+			defs:  []*jsonSchema.Column{},
+		}
+	}
+
+	// initial column pass to pre-build aggregate union info
+	// so we can just dump the union in place of the first matching member
+	// and skip the rest.
 	for i := range d.def.Columns {
 		field := &d.def.Columns[i]
-		if i > 0 {
-			fieldStrBuilder.WriteString("\n")
-		}
 
 		// sanity check on length MSSQL only allows 0-8000
 		if field.Length < 0 {
@@ -126,15 +140,31 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 		}
 
 		// does the field column name match any union patterns?
-		for pattern := range unionDefs {
+		for pattern, unionAggregate := range unionAggregates {
 			matched, err := regexp.Match(pattern, []byte(field.Name))
 			if err != nil {
 				return "", err
 			}
 			if matched {
-				unionDefs[pattern] = append(unionDefs[pattern], field.Name)
-				unionType[pattern] = cppType
+				unionAggregate.defs = append(unionAggregate.defs, field)
+				unionAggregate.cppType = cppType
+
+				if len(unionAggregate.firstName) == 0 {
+					unionAggregate.firstName = field.Name
+				}
+
+				fieldToUnionPatterns[field.Name] = pattern
 			}
+		}
+
+	}
+
+	for i := range d.def.Columns {
+		field := &d.def.Columns[i]
+
+		cppType, err := identifier.GetType(*field)
+		if err != nil {
+			return "", err
 		}
 
 		// add type-specific imports as needed
@@ -146,6 +176,15 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 		}
 		if strings.Contains(cppType, "std::optional") {
 			d.AddInclude("<optional>")
+		}
+
+		unionPattern, isUnionMember := fieldToUnionPatterns[field.Name]
+		if isUnionMember && unionAggregates[unionPattern].firstName != field.Name {
+			continue
+		}
+
+		if i > 0 {
+			fieldStrBuilder.WriteString("\n")
 		}
 
 		enum := ""
@@ -161,7 +200,7 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 				if j < len(d.def.Columns[i].Enums)-1 {
 					comma = ","
 				}
-				val.WriteString(fmt.Sprintf("\t\t\t%s = %s%s", d.def.Columns[i].Enums[j].Name, d.def.Columns[i].Enums[j].Value, comma))
+				val.WriteString(fmt.Sprintf("\t%s = %s%s", d.def.Columns[i].Enums[j].Name, d.def.Columns[i].Enums[j].Value, comma))
 				if d.def.Columns[i].Enums[j].Comment != "" {
 					val.WriteString(fmt.Sprintf(" ///< %s", d.def.Columns[i].Enums[j].Comment))
 				}
@@ -171,33 +210,47 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 			enum = fmt.Sprintf(enumFmt, enumName, strings.Join(vals, ""), d.def.Columns[i].Name)
 		}
 
-		// create a doxygen block
-		doxygen := strings.Builder{}
-		doxygen.WriteString(fmt.Sprintf("/// \\brief Column [%s]: %s\n", field.Name, field.Description))
-		doxygen.WriteString("\t\t///\n")
-		if hasEnums {
-			enumName := fmt.Sprintf("Enum%s", d.def.Columns[i].PropertyName)
-			doxygen.WriteString(fmt.Sprintf("\t\t/// \\see %s\n", enumName))
+		indentLevel := 2
+
+		// at this point, we're the first union member -- all others are skipped
+		// we should include them all here.
+		if isUnionMember {
+			unionAggregate := unionAggregates[unionPattern]
+
+			colList := strings.Builder{}
+			cppType := unionAggregate.cppType
+			for _, currentField := range unionAggregate.defs {
+
+				// subsequent members should be separated by a newline
+				if colList.Len() > 0 {
+					colList.WriteString("\n\n")
+				}
+
+				colList.WriteString(d.GenerateModelMember(*field, *currentField, cppType, hasEnums, enum, isUnionMember))
+			}
+
+			// create a doxygen block
+			doxygen := strings.Builder{}
+
+			unionArrayInitializer := getInitializer(cppType)
+			if len(unionArrayInitializer) > 0 {
+				unionArrayInitializer = " = {}"
+			}
+
+			unionArrayDef := fmt.Sprintf(unionArrayDefFmt, cppType, unionAggregate.union.PropertyName, len(unionAggregate.defs), unionArrayInitializer)
+
+			doxygen.WriteString(formatAndIndentLines(indentLevel, "/// \\brief %s\n", unionAggregate.union.Description))
+			doxygen.WriteString(formatAndIndentLines(indentLevel, "/// \\union %s", unionAggregate.union.PropertyName))
+			fieldStrBuilder.WriteString(fmt.Sprintf(
+				unionArrayFmt,
+				doxygen.String(),
+				formatAndIndentLines(indentLevel+1, "%s", unionArrayDef),
+				formatAndIndentLines(indentLevel+2, "%s", colList.String())))
+		} else {
+			fieldStrBuilder.WriteString("\n")
+			member := d.GenerateModelMember(*field, *field, cppType, hasEnums, enum, isUnionMember)
+			fieldStrBuilder.WriteString(formatAndIndentLines(indentLevel, "%s", member))
 		}
-		doxygen.WriteString(fmt.Sprintf("\t\t/// \\property %s", field.PropertyName))
-
-		initializer := getInitializer(cppType)
-
-		fieldStrBuilder.WriteString(fmt.Sprintf(memberFmt, doxygen.String(), cppType, field.PropertyName, initializer, enum))
-	}
-
-	unions := strings.Builder{}
-	for i := range d.def.Unions {
-		colList := strings.Builder{}
-		cppType := unionType[d.def.Unions[i].ColumnPattern]
-		for _, colName := range unionDefs[d.def.Unions[i].ColumnPattern] {
-			colList.WriteString(fmt.Sprintf(unionMemberFmt, cppType, colName))
-		}
-		unionNameDef := fmt.Sprintf(unionNameDefFmt, cppType, d.def.Unions[i].PropertyName, len(unionDefs[d.def.Unions[i].ColumnPattern]))
-		doxygen := strings.Builder{}
-		doxygen.WriteString(fmt.Sprintf("\t\t/// \\brief %s\n", d.def.Unions[i].Description))
-		doxygen.WriteString(fmt.Sprintf("\t\t/// \\union %s", d.def.Unions[i].PropertyName))
-		unions.WriteString(fmt.Sprintf(unionFmt, colList.String(), unionNameDef, doxygen.String()))
 	}
 
 	methods := strings.Builder{}
@@ -214,7 +267,35 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 	doxygen.WriteString(fmt.Sprintf(getDbTypeXRefFmt(d.def.Database), d.def.Name, d.def.Description))
 
 	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.moduleDef.namespace)
-	return fmt.Sprintf(modelClassFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String(), binderNs, unions.String()), nil
+	return fmt.Sprintf(modelClassFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String(), binderNs), nil
+}
+
+func (d *DoxygenTemplate) GenerateModelMember(firstField jsonSchema.Column, field jsonSchema.Column, cppType string, hasEnums bool, enum string, isUnionMember bool) string {
+
+	// create a doxygen block
+	doxygen := strings.Builder{}
+	doxygen.WriteString(fmt.Sprintf("/// \\brief Column [%s]: %s\n", field.Name, field.Description))
+	doxygen.WriteString("///\n")
+
+	if hasEnums {
+		enumName := fmt.Sprintf("Enum%s", firstField.PropertyName)
+		doxygen.WriteString(fmt.Sprintf("/// \\see %s\n", enumName))
+	}
+
+	doxygen.WriteString(fmt.Sprintf("/// \\property %s\n", field.PropertyName))
+
+	initializer := ""
+
+	// only the first member of a union can have an initializer.
+	// this should be the largest, which in our case is the array.
+	// don't assign an initializer for all of the individual members.
+	if !isUnionMember {
+		initializer = getInitializer(cppType)
+	}
+
+	member := doxygen.String()
+	member += fmt.Sprintf(memberFmt, cppType, field.PropertyName, initializer, enum)
+	return member
 }
 
 func (d *DoxygenTemplate) GenerateBinders() (string, error) {

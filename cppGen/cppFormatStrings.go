@@ -46,42 +46,37 @@ namespace %[4]s
 	// 3. Method defs
 	// 4. Class-level Doxygen block
 	// 5. binder namespace
-	// 6. unions
 	modelClassFmt = `%[4]s
 	export class %[1]s 
 	{
 	/// \publicsection
 	public:
 		using BinderType = %[5]s::%[1]s;
-%[2]s%[6]s
+%[2]s
 %[3]s
 
 	};`
 
-	// 1. column list
-	// 2. union name def
-	// 3. doxygen block
-	unionFmt = `
-
-%[3]s
+	// 1. doxygen block
+	// 2. union array def
+	// 3. column list
+	unionArrayFmt = `
+%[1]s
 		union
 		{
+%[2]s
+
 			struct
-			{%[1]s
+			{
+%[3]s
 			};
-			%[2]s
 		};`
 
 	// 1. cppType
-	// 2. Property Name
-	unionMemberFmt = `
-				%[1]s %[2]s;`
-
-	// 1. cppType
-	// 2. Union Name
-	// 3. Union Len
-	unionNameDefFmt = `
-			%[1]s %[2]s[%[3]d];`
+	// 2. Union Array Name
+	// 3. Union Array Len
+	// 4. initialized value
+	unionArrayDefFmt = "%[1]s %[2]s[%[3]d]%[4]s;"
 
 	// 1. Class contents
 	// 2. Binder namespace
@@ -113,26 +108,23 @@ namespace %[2]s
 	// 1: header file to include
 	includeFmt = "#include %[1]s\n"
 
-	// 1: doxygen comment block
-	// 2: cppType
-	// 3: PropertyName
-	// 4: initialized value
-	// 5: associated enum
-	memberFmt = `
-		%[1]s
-		%[2]s %[3]s%[4]s;%[5]s`
+	// 1: cppType
+	// 2: PropertyName
+	// 3: initialized value
+	// 4: associated enum
+	memberFmt = "%[1]s %[2]s%[3]s;%[4]s"
 
 	// 1. enumName
 	// 2. Value list
 	// 3. Column Name
 	enumFmt = `
-	
-		/// \enum %[1]s
-		/// \brief Known valid values for %[3]s
-		enum class %[1]s
-		{
+
+/// \enum %[1]s
+/// \brief Known valid values for %[3]s
+enum class %[1]s
+{
 %[2]s
-		};`
+};`
 
 	// 1. description
 	// 2. modifiers (static, inline, etc)

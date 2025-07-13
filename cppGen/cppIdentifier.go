@@ -95,3 +95,20 @@ func stripOptional(cppType string) string {
 		return strings.Replace(_type, ">", "", 1)
 	}
 }
+
+func getIndentation(level int) string {
+	return strings.Repeat("\t", level)
+}
+
+func formatAndIndentLines(level int, format string, args ...any) string {
+	indent := getIndentation(level)
+	formattedLine := fmt.Sprintf(format, args...)
+	lines := strings.Split(formattedLine, "\n")
+	for i, line := range lines {
+		if len(line) > 0 {
+			lines[i] = indent + line
+		}
+	}
+
+	return strings.Join(lines, "\n")
+}
