@@ -66,13 +66,18 @@ func (d *CppTemplate) AddMethod(def igenerator.MethodDef) {
 		pure = " const"
 	}
 
+	returnType := ""
+	if len(def.ReturnType) > 0 {
+		returnType = fmt.Sprintf("%s ", def.ReturnType)
+	}
+
 	// 1. description
 	// 2. modifiers (static, inline, etc)
 	// 3. return type
 	// 4. function name
 	// 5. params, csv
 	// 6. function body
-	d.methods = append(d.methods, fmt.Sprintf(methodFmt, def.Description, modifiers, def.ReturnType, def.Name, params, def.Body, pure))
+	d.methods = append(d.methods, fmt.Sprintf(methodFmt, def.Description, modifiers, returnType, def.Name, params, def.Body, pure))
 }
 
 func (d *CppTemplate) AddInclude(s string) {

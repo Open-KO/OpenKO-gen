@@ -457,10 +457,13 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		if len(pList) > 1 {
 			pList = pList[:len(pList)-1]
 		}
+
+		hasOutputOrReturn := false
 		procCallStr := ""
 		// posMod is used to shift the binding position depending on if we bind a return
 		posMod := 0
 		if validProcs[i].HasReturn != nil && *validProcs[i].HasReturn {
+			hasOutputOrReturn = true
 			procCallStr = fmt.Sprintf(procCallWithRetFmt, validProcs[i].Name, pList)
 			paramBindings.WriteString(fmt.Sprintf(procBindRetFmt, 0, "returnValue"))
 			funcParamList = append(funcParamList, []string{"int*", "returnValue"})
@@ -493,6 +496,8 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			}
 			if param.IsOutput {
 				_type = cppType
+				hasOutputOrReturn = true
+
 				if !strings.HasSuffix(_type, "*") {
 					_type = fmt.Sprintf(ptrFmt, _type)
 				}
@@ -530,7 +535,17 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		}
 		classTemplate.AddMethod(executeDef)
 
-		methods := strings.Join(classTemplate.methods, "")
+		if hasOutputOrReturn {
+			destructorDef := igenerator.MethodDef{
+				ReturnType:  "",
+				Name:        fmt.Sprintf("~%s", validProcs[i].ClassName),
+				Body:        procDestructorWithFlushDef,
+				Description: "Flushes any output variables or return values on destruction",
+			}
+			classTemplate.AddMethod(destructorDef)
+		}
+
+		methods := strings.Join(classTemplate.methods, "\n")
 
 		// file contents:
 		// 1. Class Name

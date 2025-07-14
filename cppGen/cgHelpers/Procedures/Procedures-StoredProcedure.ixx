@@ -7,20 +7,23 @@
 			_flushed = false;
 		}
 
-		~StoredProcedure()
+		/// \brief Flushes any output variables or return values on destruction
+		// This must be called in the destructor of a stored procedure with any output & return values.
+		void flush_on_destruct()
 		{
 			try
 			{
-				// Flush to ensure all output and return variables are always written.
 				flush();
 			}
+			// We should not throw exceptions from within a destructor.
+			// We no longer care about the state of this statement anyway.
 			catch (const nanodbc::database_error&)
 			{
-				// We should not throw exceptions from within a destructor.
-				// We no longer care about the state of this statement anyway.
 			}
 		}
 
+		/// \brief Executes the currently prepared statement
+		/// \returns a result set, if applicable
 		std::weak_ptr<nanodbc::result> execute()
 		{
 			_flushed = false;
@@ -29,6 +32,7 @@
 		}
 
 	public:
+		/// \brief Flushes any output variables or return values by reading any and all result sets
 		void flush()
 		{
 			if (_flushed
@@ -63,4 +67,3 @@
 	};
 
 	const nanodbc::string StoredProcedure::SqlState_InvalidCursorState = NANODBC_TEXT("24000");
-	

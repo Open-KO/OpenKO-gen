@@ -152,7 +152,7 @@ enum class %[1]s
 	// 7. pure
 	methodFmt = `
 		/// \brief %[1]s
-		%[2]s%[3]s %[4]s(%[5]s)%[7]s
+		%[2]s%[3]s%[4]s(%[5]s)%[7]s
 		{%[6]s
 		}`
 
@@ -283,4 +283,7 @@ enum class %[1]s
 	// 2. param
 	procBindRetFmt = `
 			_stmt.bind(%[1]d, %[2]s, nanodbc::statement::PARAM_RETURN);`
+
+	procDestructorWithFlushDef = `
+			flush_on_destruct();`
 )
