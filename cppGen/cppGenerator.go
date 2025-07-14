@@ -407,9 +407,26 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 	for i := range validProcs {
 		fmt.Println(fmt.Sprintf("generating c++ for: %s", validProcs[i].Name))
 		partitionModules = append(partitionModules, validProcs[i].ClassName)
+
 		template := CppTemplate{}
-		funcParamList := [][]string{}
 		paramBindings := strings.Builder{}
+		funcParamList := [][]string{}
+		pList := strings.Repeat("?,", len(validProcs[i].Params))
+		// drop off trailing ','
+		if len(pList) > 1 {
+			pList = pList[:len(pList)-1]
+		}
+		procCallStr := ""
+		// posMod is used to shift the binding position depending on if we bind a return
+		posMod := 0
+		if validProcs[i].HasReturn != nil && *validProcs[i].HasReturn {
+			procCallStr = fmt.Sprintf(procCallWithRetFmt, validProcs[i].Name, pList)
+			paramBindings.WriteString(fmt.Sprintf(procBindRetFmt, 0, "&_returnValue"))
+		} else {
+			posMod = -1
+			procCallStr = fmt.Sprintf(procCallFmt, validProcs[i].Name, pList)
+		}
+
 		for _, param := range validProcs[i].Params {
 			cppType, ok := TSqlTypeMapping[param.Type]
 			if !ok {
@@ -438,15 +455,20 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 				bindFmt = procBindRetFmt
 			}
 			// TODO: likely need to add modifiers like .c_str()
-			binding := fmt.Sprintf(bindFmt, param.ParamIndex-1, param.ParamName)
+			binding := fmt.Sprintf(bindFmt, param.ParamIndex+posMod, param.ParamName)
 			paramBindings.WriteString(binding)
+		}
+
+		executeBody := procExecuteNoParam
+		if paramBindings.Len() > 0 {
+			executeBody = fmt.Sprintf(procExecuteFmt, paramBindings.String())
 		}
 
 		executeDef := igenerator.MethodDef{
 			ReturnType:  "nanodbc::result*",
 			Name:        "execute",
 			Params:      funcParamList,
-			Body:        fmt.Sprintf(procExecuteFmt, paramBindings.String()),
+			Body:        executeBody,
 			Description: "Executes the stored procedure",
 		}
 		template.AddMethod(executeDef)
@@ -458,13 +480,6 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		// includes is built from an unordered hash map
 		// sort the includes alphabetically so they don't cause diffs gen-to-gen
 		sort.Strings(includes)
-
-		pList := strings.Repeat("?,", len(validProcs[i].Params))
-		// drop off trailing ','
-		if len(pList) > 1 {
-			pList = pList[:len(pList)-1]
-		}
-		procCallStr := fmt.Sprintf(procCallFmt, validProcs[i].Name, pList)
 
 		methods := strings.Join(template.methods, "")
 

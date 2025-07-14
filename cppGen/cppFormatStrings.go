@@ -258,13 +258,18 @@ namespace procedures {
 `
 	// 1. proc name
 	// 2. "?" list, csv for len of param
-	procCallFmt = "{? = CALL %[1]s(%[2]s)}"
+	procCallFmt        = "{CALL %[1]s(%[2]s)}"
+	procCallWithRetFmt = "{? = CALL %[1]s(%[2]s)}"
 
 	// 1. binding list
 	procExecuteFmt = `
 			_stmt.reset_parameters();
 %[1]s
 	
+			_result = std::make_unique<nanodbc::result>(_stmt.execute());
+			return _result.get();`
+
+	procExecuteNoParam = `
 			_result = std::make_unique<nanodbc::result>(_stmt.execute());
 			return _result.get();`
 
