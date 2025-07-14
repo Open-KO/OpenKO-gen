@@ -251,6 +251,7 @@ enum class %[1]s
 	{
 	public:
 		%[1]s(nanodbc::connection& conn) 
+			: StoredProcedure(conn)
 		{
 			_stmt.prepare("%[2]s");
 		}

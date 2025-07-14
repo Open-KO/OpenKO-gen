@@ -481,8 +481,12 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			}
 
 			_type := ""
-			if cppType == "std::string" {
+			if cppType == "std::string" || strings.Contains(cppType, "vector") {
 				cppType = "char"
+			}
+			if cppType == "uint8_t" {
+				// upcast since nanodbc can't handle tinyint right
+				cppType = "int16_t"
 			}
 			if param.IsOutput {
 				_type = fmt.Sprintf(ptrFmt, cppType)
