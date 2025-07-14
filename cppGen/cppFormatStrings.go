@@ -236,10 +236,10 @@ enum class %[1]s
 	procPartitionFmt = `module;
 
 %[1]s
-export module Procedure:%[2]s;
+export module Procedures:%[2]s;
 import :StoredProcedure;
 
-namespace procedure {
+namespace procedures {
 
 	/// \brief %[5]s
 	/// \class %[2]s

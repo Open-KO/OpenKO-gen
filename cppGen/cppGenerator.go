@@ -386,7 +386,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 	for i := range manFiles {
 		// add the file to the partition list
 		partName := strings.TrimSuffix(filepath.Base(manFiles[i]), filepath.Ext(manFiles[i]))
-		partName = strings.Replace(partName, "Procedure-", "", 1)
+		partName = strings.Replace(partName, "Procedures-", "", 1)
 		partitionModules = append(partitionModules, partName)
 
 		// read the file from cgHelpers

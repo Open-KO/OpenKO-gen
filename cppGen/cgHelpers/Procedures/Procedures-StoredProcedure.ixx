@@ -2,9 +2,9 @@ module;
 
 #include <nanodbc/nanodbc.h>
 
-export module Procedure:StoredProcedure;
+export module Procedures:StoredProcedure;
 
-namespace procedure {
+namespace procedures {
     export class StoredProcedure
     {
     public:
