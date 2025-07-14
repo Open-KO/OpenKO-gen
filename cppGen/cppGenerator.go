@@ -421,7 +421,8 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		posMod := 0
 		if validProcs[i].HasReturn != nil && *validProcs[i].HasReturn {
 			procCallStr = fmt.Sprintf(procCallWithRetFmt, validProcs[i].Name, pList)
-			paramBindings.WriteString(fmt.Sprintf(procBindRetFmt, 0, "&_returnValue"))
+			paramBindings.WriteString(fmt.Sprintf(procBindRetFmt, 0, "returnValue"))
+			funcParamList = append(funcParamList, []string{"int*", "returnValue"})
 		} else {
 			posMod = -1
 			procCallStr = fmt.Sprintf(procCallFmt, validProcs[i].Name, pList)
@@ -443,10 +444,13 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			}
 
 			_type := ""
+			if cppType == "std::string" {
+				cppType = "char"
+			}
 			if param.IsOutput {
-				_type = fmt.Sprintf("%s&", cppType)
+				_type = fmt.Sprintf(ptrFmt, cppType)
 			} else {
-				_type = fmt.Sprintf(constRefFmt, cppType)
+				_type = fmt.Sprintf(constPtrFmt, cppType)
 			}
 			funcParamList = append(funcParamList, []string{_type, param.ParamName})
 
@@ -464,8 +468,9 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			executeBody = fmt.Sprintf(procExecuteFmt, paramBindings.String())
 		}
 
+		template.AddInclude("<memory>")
 		executeDef := igenerator.MethodDef{
-			ReturnType:  "nanodbc::result*",
+			ReturnType:  "std::weak_ptr<nanodbc::result>",
 			Name:        "execute",
 			Params:      funcParamList,
 			Body:        executeBody,

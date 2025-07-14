@@ -1,56 +1,57 @@
 module;
 
 #include <nanodbc/nanodbc.h>
+#include <memory>
 
 export module Procedures:StoredProcedure;
 
 namespace procedures {
     export class StoredProcedure
-    {
-    public:
-        StoredProcedure(nanodbc::connection& conn)
-            : _conn(conn), _stmt(conn)
-        {
-            _returnValue = 0;
-            _finalized = false;
-        }
+   {
+   protected:
+       StoredProcedure(nanodbc::connection& conn)
+           : _conn(conn), _stmt(conn)
+       {
+           _flushed = false;
+       }
 
-        int returnValue()
-        {
-            finalize();
-            return _returnValue;
-        }
+       ~StoredProcedure()
+       {
+           try
+           {
+               flush();
+           }
+           catch (const nanodbc::database_error&)
+           {
+           }
+       }
 
-        void finalize()
-        {
-            if (_finalized
-                || _result == nullptr)
-                return;
+       std::weak_ptr<nanodbc::result> execute()
+       {
+           _flushed = false;
+           _result = std::make_shared<nanodbc::result>(_stmt.execute());
+           return _result;
+       }
 
-            while (_result->next()
-                || _result->next_result())
-            {
-            }
+   public:
+       void flush()
+       {
+           if (_flushed
+               || _result == nullptr)
+               return;
 
-            _finalized = true;
-        }
+           while (_result->next()
+               || _result->next_result())
+           {
+           }
 
-        ~StoredProcedure()
-        {
-            try
-            {
-                finalize();
-            }
-            catch (const nanodbc::database_error&)
-            {
-            }
-        }
+           _flushed = true;
+       }
 
-    protected:
-        nanodbc::connection& _conn;
-        nanodbc::statement _stmt;
-        std::unique_ptr<nanodbc::result> _result;
-        int _returnValue;
-        bool _finalized;
-    };
+   protected:
+       nanodbc::connection& _conn;
+       nanodbc::statement _stmt;
+       std::shared_ptr<nanodbc::result> _result;
+       bool _flushed;
+   };
 }

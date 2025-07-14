@@ -227,6 +227,8 @@ enum class %[1]s
 
 	// 1. Type
 	constRefFmt = "const %s&"
+	ptrFmt      = "%s*"
+	constPtrFmt = "const %s*"
 
 	// 1. includes
 	// 2. Class Name
@@ -250,8 +252,6 @@ namespace procedures {
 		{
 			_stmt.prepare("%[3]s");
 		}
-		
-		using StoredProcedure::returnValue;
 %[4]s
 	};
 }
@@ -266,12 +266,10 @@ namespace procedures {
 			_stmt.reset_parameters();
 %[1]s
 	
-			_result = std::make_unique<nanodbc::result>(_stmt.execute());
-			return _result.get();`
+			return StoredProcedure::execute();`
 
 	procExecuteNoParam = `
-			_result = std::make_unique<nanodbc::result>(_stmt.execute());
-			return _result.get();`
+			return StoredProcedure::execute();`
 
 	// 1. paramIndex
 	// 2. param
