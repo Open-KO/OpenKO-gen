@@ -1,12 +1,3 @@
-module;
-
-#include <nanodbc/nanodbc.h>
-#include <memory>
-
-export module Procedures:StoredProcedure;
-
-namespace procedures
-{
 	export class StoredProcedure
 	{
 	protected:
@@ -72,4 +63,4 @@ namespace procedures
 	};
 
 	const nanodbc::string StoredProcedure::SqlState_InvalidCursorState = NANODBC_TEXT("24000");
-}
+	

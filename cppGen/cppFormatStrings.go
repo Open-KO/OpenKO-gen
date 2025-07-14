@@ -1,52 +1,60 @@
 package cppGen
 
 const (
-	// 1: import export list
-	// 2: Model or Binder
+	// 1: Module name
+	// 2. includes
+	// 3. imports
+	// 4: file contents
 	// TODO: \mainpage doc?
 	// primaryModuleFmt is the template for the primary module file
-	primaryModuleFmt = `export module %[2]s;
+	primaryModuleFmt = `module;
 
-%[1]s`
+%[2]s
+export module %[1]s;
+
+%[3]s
+%[4]s`
 
 	// 1: partition module to export
-	exportImportFmt = "export import :%[1]s;\n"
+	//exportImportFmt = "export import :%[1]s;\n"
 
 	// 1: ClassName
 	// 2: file contents
 	// 3: includes
 	// 4: Model or Binder
 	// partitionModuleFmt is the template for a module partition
-	partitionModuleFmt = `module;
-
-%[3]s
-export module %[4]s:%[1]s;
-
-%[2]s`
+	//	partitionModuleFmt = `module;
+	//
+	//%[3]s
+	//export module %[4]s:%[1]s;
+	//
+	//%[2]s`
 
 	// 1. ClassName
 	// 2. Class contents
 	// 3. binder namespace
 	// 4. model namespace
-	modelFileFmt = `import ModelUtil;
+	//	modelFileFmt = `namespace %[3]s
+	//{
+	//	export class %[1]s;
+	//}
+	//
+	//namespace %[4]s
+	//{
+	//%[2]s
+	//}
+	//`
 
-namespace %[3]s
-{
-	export class %[1]s;
-}
-
-namespace %[4]s
-{
-%[2]s
-}
-`
+	// 1. Class Name
+	modelFwdDeclareFmt = "\n\texport class %[1]s;"
 
 	// 1. ClassName
 	// 2. Member defs
 	// 3. Method defs
 	// 4. Class-level Doxygen block
 	// 5. binder namespace
-	modelClassFmt = `%[4]s
+	modelClassFmt = `
+%[4]s
 	export class %[1]s 
 	{
 	/// \publicsection
@@ -55,7 +63,8 @@ namespace %[4]s
 %[2]s
 %[3]s
 
-	};`
+	};
+`
 
 	// 1. doxygen block
 	// 2. union array def
@@ -85,16 +94,15 @@ namespace %[4]s
 	///
 	/// \property %[3]s`
 
-	// 1. Class contents
-	// 2. Binder namespace
-	// 3. model namespace
-	binderFileFmt = `import %[3]sModel;
-import BinderUtil;
-
-namespace %[2]s
-{%[1]s
+	// 1. name
+	// 2. contents
+	namespaceFmt = `namespace %[1]s
+{%[2]s
 }
 `
+	// 1. namespace name
+	namespaceOpen = `namespace %[1]s
+{`
 
 	// 1. ClassName
 	// 2. Method defs
@@ -110,10 +118,12 @@ namespace %[2]s
 		using BindingsMapType = std::unordered_map<std::string, BindColumnFunction_t>;
 %[2]s
 
-	};`
+	};
+`
 
 	// 1: header file to include
 	includeFmt = "#include %[1]s\n"
+	importFmt  = "import %[1]s;\n"
 
 	// 1: cppType
 	// 2: PropertyName
@@ -230,31 +240,22 @@ enum class %[1]s
 	ptrFmt      = "%s*"
 	constPtrFmt = "const %s*"
 
-	// 1. includes
-	// 2. Class Name
-	// 3. Procedure Call prepared statement i.e., {? = CALL LOAD_ACCOUNT_CHARID(?)}
-	// 4. Methods
-	// 5. Class description
-	procPartitionFmt = `module;
-
-%[1]s
-export module Procedures:%[2]s;
-import :StoredProcedure;
-
-namespace procedures {
-
-	/// \brief %[5]s
-	/// \class %[2]s
-	export class %[2]s : public StoredProcedure
+	// 1. Class Name
+	// 2. Procedure Call prepared statement i.e., {? = CALL LOAD_ACCOUNT_CHARID(?)}
+	// 3. Methods
+	// 4. Class description
+	procClassFmt = `
+	/// \brief %[4]s
+	/// \class %[1]s
+	export class %[1]s : public StoredProcedure
 	{
 	public:
-		%[2]s(nanodbc::connection& conn) 
+		%[1]s(nanodbc::connection& conn) 
 		{
-			_stmt.prepare("%[3]s");
+			_stmt.prepare("%[2]s");
 		}
-%[4]s
+%[3]s
 	};
-}
 `
 	// 1. proc name
 	// 2. "?" list, csv for len of param

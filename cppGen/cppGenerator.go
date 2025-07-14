@@ -107,13 +107,33 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		return err
 	}
 
+	modelModuleName := fmt.Sprintf(moduleSuffixModelFmt, moduleDef.OutDir)
+	binderModuleName := fmt.Sprintf(moduleSuffixBinderFmt, moduleDef.OutDir)
+
+	modelTemplate := CppTemplate{}
+	modelTemplate.AddInclude("<unordered_set>")
+	modelTemplate.AddInclude("<string>")
+	modelTemplate.AddInclude("<string>")
+	modelTemplate.AddInclude("ModelUtil")
+	binderTemplate := CppTemplate{}
+	binderTemplate.AddInclude("<string>")
+	binderTemplate.AddInclude("<unordered_map>")
+	binderTemplate.AddInclude("<nanodbc/nanodbc.h>")
+	binderTemplate.AddInclude(modelModuleName)
+	binderTemplate.AddInclude("BinderUtil")
+
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
 
-	moduleSuffixModel := fmt.Sprintf(moduleSuffixModelFmt, moduleDef.OutDir)
-	moduleSuffixBinder := fmt.Sprintf(moduleSuffixBinderFmt, moduleDef.OutDir)
-
-	partitionModules := []string{}
+	// memory is tasty
+	modelFileContents := strings.Builder{}
+	modelFwdDeclares := strings.Builder{}
+	binderFileContents := strings.Builder{}
+	modelNs := fmt.Sprintf(profile.ModelNsFmt, moduleDef.namespace)
+	binderNs := fmt.Sprintf(profile.BinderNsFmt, moduleDef.namespace)
+	modelFileContents.WriteString(fmt.Sprintf(namespaceOpen, modelNs))
+	binderFileContents.WriteString(fmt.Sprintf(namespaceOpen, binderNs))
+	modelFwdDeclares.WriteString(fmt.Sprintf(namespaceOpen, binderNs))
 	for i := range validSchemas {
 		isIncluded := moduleDef.namespace == profile.All
 		exportDef := jsonSchema.Export{}
@@ -128,6 +148,9 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 			continue
 		}
 		fmt.Println(fmt.Sprintf("generating c++ for: %s", validSchemas[i].Name))
+
+		// model forward declare of binder
+		modelFwdDeclares.WriteString(fmt.Sprintf(modelFwdDeclareFmt, validSchemas[i].ClassName))
 
 		pk := jsonSchema.IndexDef{}
 		for x := range validSchemas[i].Indexes {
@@ -151,25 +174,18 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 			}
 		}
 
-		partitionModules = append(partitionModules, filterDef.ClassName)
-
 		// the template is an interface implementation that allows us to
 		// structure and generate a code file
 		template := CppTemplate{}
 		template.def = filterDef
 		template.namespace = fmt.Sprintf(profile.ModelNsFmt, moduleDef.namespace)
-		template.moduleSuffix = moduleSuffixModel
-		template.AddInclude("<unordered_set>")
-		template.AddInclude("<string>")
+		template.moduleSuffix = modelModuleName
 		template.moduleDef = moduleDef
 
 		bindingTemplate := CppTemplate{}
 		bindingTemplate.def = filterDef
 		bindingTemplate.namespace = fmt.Sprintf(profile.BinderNsFmt, moduleDef.namespace)
-		bindingTemplate.moduleSuffix = moduleSuffixBinder
-		bindingTemplate.AddInclude("<string>")
-		bindingTemplate.AddInclude("<unordered_map>")
-		bindingTemplate.AddInclude("<nanodbc/nanodbc.h>")
+		bindingTemplate.moduleSuffix = binderModuleName
 		bindingTemplate.moduleDef = moduleDef
 
 		// function defs
@@ -292,18 +308,17 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		}
 
 		// generate template
-		templateStr, tErr := template.Generate()
+		modelClassDef, tErr := template.Generate()
 		if tErr != nil {
 			err = fmt.Errorf("%s failed to generate c++ source: %w", filterDef.Name, tErr)
 			return err
 		}
+		modelFileContents.WriteString(modelClassDef)
 
-		outFile := filepath.Join(modelOut, template.GetFileName())
-		if fErr := utils.WriteToFile(outFile, templateStr); fErr != nil {
-			err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
-			return err
+		// copy includes to main template
+		for k, v := range template.includes {
+			modelTemplate.includes[k] = v
 		}
-		fmt.Println(fmt.Sprintf("... written to: %s", outFile))
 
 		// binder functions
 		// Generate a GetColumnBindings func
@@ -324,34 +339,65 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		bindingTemplate.AddMethod(colBindDef)
 
 		// generate binding template
-		bindingTemplateStr, tErr := bindingTemplate.GenerateBinders()
+		binderClassDef, tErr := bindingTemplate.GenerateBinderClass()
 		if tErr != nil {
 			err = fmt.Errorf("%s failed to generate c++ bindings source: %w", filterDef.Name, tErr)
 			return err
 		}
+		binderFileContents.WriteString(binderClassDef)
+	}
 
-		outFile = filepath.Join(binderOut, bindingTemplate.GetFileName())
-		if fErr := utils.WriteToFile(outFile, bindingTemplateStr); fErr != nil {
-			err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
-			return err
+	var includes []string
+	var imports []string
+	for include, isInclude := range modelTemplate.includes {
+		if isInclude {
+			includes = append(includes, include)
+		} else {
+			imports = append(imports, include)
 		}
-
-		fmt.Println(fmt.Sprintf("... written to: %s", outFile))
 	}
+	// includes is built from an unordered hash map
+	// sort the includes alphabetically so they don't cause diffs gen-to-gen
+	sort.Strings(includes)
+	sort.Strings(imports)
 
-	// create primary module file
-	exportImports := strings.Builder{}
-	for i := range partitionModules {
-		exportImports.WriteString(fmt.Sprintf(exportImportFmt, partitionModules[i]))
-	}
-	modelModuleStr := fmt.Sprintf(primaryModuleFmt, exportImports.String(), moduleSuffixModel)
-	outFile := filepath.Join(modelOut, fmt.Sprintf(primaryModuleFileName, moduleSuffixModel))
+	// close the namespace
+	modelFwdDeclares.WriteString("\n}\n\n")
+	modelFileContents.WriteString("}")
+
+	// combine model content
+	modelFwdDeclares.WriteString(modelFileContents.String())
+
+	// 1: Module name
+	// 2. includes
+	// 3. imports
+	// 4: file contents
+	modelModuleStr := fmt.Sprintf(primaryModuleFmt, modelModuleName, strings.Join(includes, ""), strings.Join(imports, ""), modelFwdDeclares.String())
+	outFile := filepath.Join(modelOut, fmt.Sprintf(primaryModuleFileName, modelModuleName))
 	if fErr := utils.WriteToFile(outFile, modelModuleStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 		return err
 	}
-	bindingModuleStr := fmt.Sprintf(primaryModuleFmt, exportImports.String(), moduleSuffixBinder)
-	outFile = filepath.Join(binderOut, fmt.Sprintf(primaryModuleFileName, moduleSuffixBinder))
+
+	includes = []string{}
+	imports = []string{}
+	for include, isInclude := range binderTemplate.includes {
+		if isInclude {
+			includes = append(includes, include)
+		} else {
+			imports = append(imports, include)
+		}
+	}
+	// includes is built from an unordered hash map
+	// sort the includes alphabetically so they don't cause diffs gen-to-gen
+	sort.Strings(includes)
+	sort.Strings(imports)
+
+	// close the namespace
+	binderFileContents.WriteString("}")
+
+	bindingModuleStr := fmt.Sprintf(primaryModuleFmt, binderModuleName, strings.Join(includes, ""), strings.Join(imports, ""), binderFileContents.String())
+	outFile = filepath.Join(binderOut, fmt.Sprintf(primaryModuleFileName, binderModuleName))
 	if fErr := utils.WriteToFile(outFile, bindingModuleStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 		return err
@@ -377,38 +423,32 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		return err
 	}
 
-	partitionModules := []string{}
+	template := CppTemplate{}
+	template.AddInclude("<nanodbc/nanodbc.h>")
+	template.AddInclude("<memory>")
+
+	procFileContents := strings.Builder{}
+	procFileContents.WriteString(fmt.Sprintf(namespaceOpen, "procedures"))
+	procFileContents.WriteString("\n")
 	// Read any manually coded files:
 	manFiles, err := filepath.Glob(filepath.Join(procCgHelperDir, "*.ixx"))
 	if err != nil {
 		return err
 	}
 	for i := range manFiles {
-		// add the file to the partition list
-		partName := strings.TrimSuffix(filepath.Base(manFiles[i]), filepath.Ext(manFiles[i]))
-		partName = strings.Replace(partName, "Procedures-", "", 1)
-		partitionModules = append(partitionModules, partName)
-
 		// read the file from cgHelpers
 		bytes, err := os.ReadFile(manFiles[i])
 		if err != nil {
 			err = fmt.Errorf("failed to read cgHelper file: %w", err)
 			return err
 		}
-
-		// write the file
-		outFile := filepath.Join(procOut, filepath.Base(manFiles[i]))
-		if fErr := utils.WriteToFile(outFile, string(bytes)); fErr != nil {
-			err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
-			return err
-		}
+		procFileContents.Write(bytes)
 	}
 
 	for i := range validProcs {
 		fmt.Println(fmt.Sprintf("generating c++ for: %s", validProcs[i].Name))
-		partitionModules = append(partitionModules, validProcs[i].ClassName)
 
-		template := CppTemplate{}
+		classTemplate := CppTemplate{}
 		paramBindings := strings.Builder{}
 		funcParamList := [][]string{}
 		pList := strings.Repeat("?,", len(validProcs[i].Params))
@@ -439,9 +479,6 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			} else if strings.Contains(cppType, "time_t") {
 				template.AddInclude("<ctime>")
 			}
-			if strings.Contains(cppType, "std::string") {
-				template.AddInclude("<string>")
-			}
 
 			_type := ""
 			if cppType == "std::string" {
@@ -468,7 +505,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			executeBody = fmt.Sprintf(procExecuteFmt, paramBindings.String())
 		}
 
-		template.AddInclude("<memory>")
+		classTemplate.AddInclude("<memory>")
 		executeDef := igenerator.MethodDef{
 			ReturnType:  "std::weak_ptr<nanodbc::result>",
 			Name:        "execute",
@@ -476,42 +513,42 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			Body:        executeBody,
 			Description: "Executes the stored procedure",
 		}
-		template.AddMethod(executeDef)
+		classTemplate.AddMethod(executeDef)
 
-		var includes []string
-		for include := range template.includes {
-			includes = append(includes, include)
-		}
-		// includes is built from an unordered hash map
-		// sort the includes alphabetically so they don't cause diffs gen-to-gen
-		sort.Strings(includes)
-
-		methods := strings.Join(template.methods, "")
+		methods := strings.Join(classTemplate.methods, "")
 
 		// file contents:
-		// 1. includes
-		// 2. Class Name
-		// 3. Procedure Call prepared statement i.e., {? = CALL LOAD_ACCOUNT_CHARID(?)}
-		// 4. Methods
-		// 5. Proc description
-		partFileStr := fmt.Sprintf(procPartitionFmt, strings.Join(includes, ""),
-			validProcs[i].ClassName, procCallStr, methods, validProcs[i].Description)
+		// 1. Class Name
+		// 2. Procedure Call prepared statement i.e., {? = CALL LOAD_ACCOUNT_CHARID(?)}
+		// 3. Methods
+		// 4. Proc description
+		partFileStr := fmt.Sprintf(procClassFmt, validProcs[i].ClassName,
+			procCallStr, methods, validProcs[i].Description)
+		procFileContents.WriteString(partFileStr)
+	}
 
-		// write file
-		partFileName := fmt.Sprintf("%s-%s.ixx", procPackageOutDir, validProcs[i].ClassName)
-		partOut := filepath.Join(procOut, partFileName)
-		if fErr := utils.WriteToFile(partOut, partFileStr); fErr != nil {
-			err = fmt.Errorf("failed to write file %s: %w", partOut, fErr)
-			return err
+	var includes []string
+	var imports []string
+	for include, isInclude := range template.includes {
+		if isInclude {
+			includes = append(includes, include)
+		} else {
+			imports = append(imports, include)
 		}
 	}
+	// includes is built from an unordered hash map
+	// sort the includes alphabetically so they don't cause diffs gen-to-gen
+	sort.Strings(includes)
+	sort.Strings(imports)
 
-	// create primary module file
-	exportImports := strings.Builder{}
-	for i := range partitionModules {
-		exportImports.WriteString(fmt.Sprintf(exportImportFmt, partitionModules[i]))
-	}
-	procModuleStr := fmt.Sprintf(primaryModuleFmt, exportImports.String(), procPackageOutDir)
+	// close the namespace
+	procFileContents.WriteString("}")
+
+	// 1: Module name
+	// 2. includes
+	// 3. imports
+	// 4: file contents
+	procModuleStr := fmt.Sprintf(primaryModuleFmt, procPackageOutDir, strings.Join(includes, ""), strings.Join(imports, ""), procFileContents.String())
 	outFile := filepath.Join(procOut, fmt.Sprintf(primaryModuleFileName, procPackageOutDir))
 	if fErr := utils.WriteToFile(outFile, procModuleStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)

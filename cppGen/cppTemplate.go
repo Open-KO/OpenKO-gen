@@ -9,7 +9,6 @@ import (
 	"openko-gen/igenerator"
 	"openko-gen/utils"
 	"regexp"
-	"sort"
 	"strings"
 )
 
@@ -23,8 +22,11 @@ const (
 )
 
 type CppTemplate struct {
-	def            jsonSchema.TableDef
-	methods        []string
+	def     jsonSchema.TableDef
+	methods []string
+	// we use includes for both #include and import
+	// true map val = include
+	// false map val = import
 	includes       map[string]bool
 	consts         map[string]string
 	additionalCode []string
@@ -77,8 +79,15 @@ func (d *CppTemplate) AddInclude(s string) {
 	if d.includes == nil {
 		d.includes = make(map[string]bool)
 	}
-	key := fmt.Sprintf(includeFmt, s)
-	d.includes[key] = true
+
+	key := ""
+	if strings.Contains(s, "\"") || strings.Contains(s, "<") {
+		key = fmt.Sprintf(includeFmt, s)
+		d.includes[key] = true
+	} else {
+		key = fmt.Sprintf(importFmt, s)
+		d.includes[key] = false
+	}
 }
 
 func (d *CppTemplate) Generate() (string, error) {
@@ -86,26 +95,10 @@ func (d *CppTemplate) Generate() (string, error) {
 		return "", fmt.Errorf("className not set")
 	}
 
-	fullClassDef, err := d.GenerateModelClass()
-	if err != nil {
-		return "", err
-	}
-
-	var includes []string
-	for include := range d.includes {
-		includes = append(includes, include)
-	}
-	// includes is built from an unordered hash map
-	// sort the includes alphabetically so they don't cause diffs gen-to-gen
-	sort.Strings(includes)
-
-	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.moduleDef.namespace)
-	fileStr := fmt.Sprintf(modelFileFmt, d.def.ClassName, fullClassDef, binderNs, d.namespace)
-	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, ""), d.moduleSuffix), nil
+	return d.GenerateModelClass()
 }
 
 func (d *CppTemplate) GenerateModelClass() (string, error) {
-
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
 
@@ -292,28 +285,6 @@ func (d *CppTemplate) GenerateModelMember(firstField jsonSchema.Column, field js
 	member := doxygen.String()
 	member += fmt.Sprintf(memberFmt, cppType, field.PropertyName, initializer, enum)
 	return member
-}
-
-func (d *CppTemplate) GenerateBinders() (string, error) {
-	if d.def.ClassName == "" {
-		return "", fmt.Errorf("className not set")
-	}
-
-	classStr, err := d.GenerateBinderClass()
-	if err != nil {
-		return "", err
-	}
-
-	var includes []string
-	for include := range d.includes {
-		includes = append(includes, include)
-	}
-	// includes is built from an unordered hash map
-	// sort the includes alphabetically so they don't cause diffs gen-to-gen
-	sort.Strings(includes)
-
-	fileStr := fmt.Sprintf(binderFileFmt, classStr, d.namespace, d.moduleDef.OutDir)
-	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, ""), d.moduleSuffix), nil
 }
 
 func (d *CppTemplate) GenerateBinderClass() (string, error) {
