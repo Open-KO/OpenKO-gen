@@ -239,6 +239,7 @@ enum class %[1]s
 	constRefFmt = "const %s&"
 	ptrFmt      = "%s*"
 	constPtrFmt = "const %s*"
+	constFmt    = "const %s"
 
 	// 1. Class Name
 	// 2. Procedure Call prepared statement i.e., {? = CALL LOAD_ACCOUNT_CHARID(?)}

@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"github.com/Open-KO/kodb-godef"
 	"github.com/Open-KO/kodb-godef/enums/profile"
+	"github.com/Open-KO/kodb-godef/enums/tsql"
 	"openko-gen/igenerator"
 	"openko-gen/utils"
 	"os"
@@ -481,18 +482,24 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			}
 
 			_type := ""
-			if cppType == "std::string" || strings.Contains(cppType, "vector") {
-				cppType = "char"
-			}
-			if cppType == "uint8_t" {
+			if cppType == "std::string" || param.Type == tsql.Text {
+				cppType = "char*"
+			} else if strings.Contains(cppType, "vector") {
+				// TODO: Figure out best binding type
+				cppType = "char*"
+			} else if cppType == "uint8_t" {
 				// upcast since nanodbc can't handle tinyint right
 				cppType = "int16_t"
 			}
 			if param.IsOutput {
-				_type = fmt.Sprintf(ptrFmt, cppType)
+				_type = cppType
+				if !strings.HasSuffix(_type, "*") {
+					_type = fmt.Sprintf(ptrFmt, _type)
+				}
 			} else {
-				_type = fmt.Sprintf(constPtrFmt, cppType)
+				_type = fmt.Sprintf(constFmt, cppType)
 			}
+			isPtr := strings.HasSuffix(_type, "*")
 			funcParamList = append(funcParamList, []string{_type, param.ParamName})
 
 			bindFmt := procBindFmt
@@ -500,7 +507,11 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 				bindFmt = procBindRetFmt
 			}
 			// TODO: likely need to add modifiers like .c_str()
-			binding := fmt.Sprintf(bindFmt, param.ParamIndex+posMod, param.ParamName)
+			p := param.ParamName
+			if !isPtr {
+				p = "&" + p
+			}
+			binding := fmt.Sprintf(bindFmt, param.ParamIndex+posMod, p)
 			paramBindings.WriteString(binding)
 		}
 
