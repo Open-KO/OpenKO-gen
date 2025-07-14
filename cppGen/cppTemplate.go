@@ -22,7 +22,7 @@ const (
 	moduleSuffixBinderFmt = "%sBinder"
 )
 
-type DoxygenTemplate struct {
+type CppTemplate struct {
 	def            jsonSchema.TableDef
 	methods        []string
 	includes       map[string]bool
@@ -41,11 +41,11 @@ type AggregateUnion struct {
 	defs          []jsonSchema.Column
 }
 
-func (d *DoxygenTemplate) SetTableDef(def jsonSchema.TableDef) {
+func (d *CppTemplate) SetTableDef(def jsonSchema.TableDef) {
 	d.def = def
 }
 
-func (d *DoxygenTemplate) AddMethod(def igenerator.MethodDef) {
+func (d *CppTemplate) AddMethod(def igenerator.MethodDef) {
 	params := ""
 	for i := range def.Params {
 		if i > 0 {
@@ -73,7 +73,7 @@ func (d *DoxygenTemplate) AddMethod(def igenerator.MethodDef) {
 	d.methods = append(d.methods, fmt.Sprintf(methodFmt, def.Description, modifiers, def.ReturnType, def.Name, params, def.Body, pure))
 }
 
-func (d *DoxygenTemplate) AddInclude(s string) {
+func (d *CppTemplate) AddInclude(s string) {
 	if d.includes == nil {
 		d.includes = make(map[string]bool)
 	}
@@ -81,7 +81,7 @@ func (d *DoxygenTemplate) AddInclude(s string) {
 	d.includes[key] = true
 }
 
-func (d *DoxygenTemplate) Generate() (string, error) {
+func (d *CppTemplate) Generate() (string, error) {
 	if d.def.ClassName == "" {
 		return "", fmt.Errorf("className not set")
 	}
@@ -104,7 +104,7 @@ func (d *DoxygenTemplate) Generate() (string, error) {
 	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, ""), d.moduleSuffix), nil
 }
 
-func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
+func (d *CppTemplate) GenerateModelClass() (string, error) {
 
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
@@ -266,7 +266,7 @@ func (d *DoxygenTemplate) GenerateModelClass() (string, error) {
 	return fmt.Sprintf(modelClassFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String(), binderNs), nil
 }
 
-func (d *DoxygenTemplate) GenerateModelMember(firstField jsonSchema.Column, field jsonSchema.Column, cppType string, hasEnums bool, enum string, isUnionMember bool) string {
+func (d *CppTemplate) GenerateModelMember(firstField jsonSchema.Column, field jsonSchema.Column, cppType string, hasEnums bool, enum string, isUnionMember bool) string {
 
 	// create a doxygen block
 	doxygen := strings.Builder{}
@@ -294,7 +294,7 @@ func (d *DoxygenTemplate) GenerateModelMember(firstField jsonSchema.Column, fiel
 	return member
 }
 
-func (d *DoxygenTemplate) GenerateBinders() (string, error) {
+func (d *CppTemplate) GenerateBinders() (string, error) {
 	if d.def.ClassName == "" {
 		return "", fmt.Errorf("className not set")
 	}
@@ -316,7 +316,7 @@ func (d *DoxygenTemplate) GenerateBinders() (string, error) {
 	return fmt.Sprintf(partitionModuleFmt, d.def.ClassName, fileStr, strings.Join(includes, ""), d.moduleSuffix), nil
 }
 
-func (d *DoxygenTemplate) GenerateBinderClass() (string, error) {
+func (d *CppTemplate) GenerateBinderClass() (string, error) {
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
 	modelNs := fmt.Sprintf(profile.ModelNsFmt, d.moduleDef.namespace)
@@ -376,11 +376,11 @@ func (d *DoxygenTemplate) GenerateBinderClass() (string, error) {
 	return fmt.Sprintf(binderClassFmt, d.def.ClassName, methods.String(), modelNs), nil
 }
 
-func (d *DoxygenTemplate) GetFileName() string {
+func (d *CppTemplate) GetFileName() string {
 	return fmt.Sprintf(fileNameFmt, fmt.Sprintf("%s-%s", d.moduleSuffix, d.def.ClassName))
 }
 
-func (d *DoxygenTemplate) AddConst(name string, value string) {
+func (d *CppTemplate) AddConst(name string, value string) {
 	if d.consts == nil {
 		d.consts = make(map[string]string)
 	}

@@ -15,6 +15,7 @@ const (
 	schemaExtPattern = "*.json"
 	GormLibOut       = "OpenKO-gorm/"
 	CppLibOut        = "OpenKO-db-modules/"
+	procedureDir     = "procedures"
 )
 
 var (
@@ -52,6 +53,39 @@ func LoadSchemas() (validSchemas []jsonSchema.TableDef, err error) {
 	}
 
 	return validSchemas, nil
+}
+
+// LoadProcs reads all *.json files from the given schemas directory and marshals them into ProcDefs
+func LoadProcs() (validProcs []jsonSchema.ProcDef, err error) {
+	procDir := filepath.Join(SchemaDir, procedureDir)
+	fmt.Println("reading procedure json file names from: " + procDir)
+	fileNames, err := GetSchemaFileNames(procDir)
+	if err != nil {
+		err = fmt.Errorf("failed to read procedure json file names: %w", err)
+		return validProcs, err
+	}
+	fmt.Println(fmt.Sprintf("found %d procedure json files", len(fileNames)))
+
+	for i := range fileNames {
+		fmt.Print(fmt.Sprintf("loading schema file: %s", fileNames[i]))
+		bytes, err := os.ReadFile(fileNames[i])
+		if err != nil {
+			err = fmt.Errorf("failed to read schema file: %w", err)
+			return validProcs, err
+		}
+
+		def := jsonSchema.ProcDef{}
+		err = json.Unmarshal(bytes, &def)
+		if err != nil {
+			err = fmt.Errorf("failed to unmarshal schema file: %w", err)
+			return validProcs, err
+		}
+
+		fmt.Println(" ...done")
+		validProcs = append(validProcs, def)
+	}
+
+	return validProcs, nil
 }
 
 func WriteToFile(filename string, content string) error {

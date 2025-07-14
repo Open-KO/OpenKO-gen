@@ -227,4 +227,54 @@ enum class %[1]s
 
 	// 1. Type
 	constRefFmt = "const %s&"
+
+	// 1. includes
+	// 2. Class Name
+	// 3. Procedure Call prepared statement i.e., {? = CALL LOAD_ACCOUNT_CHARID(?)}
+	// 4. Methods
+	// 5. Class description
+	procPartitionFmt = `module;
+
+%[1]s
+export module Procedure:%[2]s;
+import :StoredProcedure;
+
+namespace procedure {
+
+	/// \brief %[5]s
+	/// \class %[2]s
+	export class %[2]s : public StoredProcedure
+	{
+	public:
+		%[2]s(nanodbc::connection& conn) 
+		{
+			_stmt.prepare("%[3]s");
+		}
+		
+		using StoredProcedure::returnValue;
+%[4]s
+	};
+}
+`
+	// 1. proc name
+	// 2. "?" list, csv for len of param
+	procCallFmt = "{? = CALL %[1]s(%[2]s)}"
+
+	// 1. binding list
+	procExecuteFmt = `
+			_stmt.reset_parameters();
+%[1]s
+	
+			_result = std::make_unique<nanodbc::result>(_stmt.execute());
+			return _result.get();`
+
+	// 1. paramIndex
+	// 2. param
+	procBindFmt = `
+			_stmt.bind(%[1]d, %[2]s);`
+
+	// 1. paramIndex
+	// 2. param
+	procBindRetFmt = `
+			_stmt.bind(%[1]d, %[2]s, nanodbc::statement::PARAM_RETURN);`
 )
