@@ -81,9 +81,9 @@ namespace %[4]s
 	// 2. last column name in array group
 	// 3. property name
 	unionArrayDoxygenFmt = `
-	/// \\brief Union array grouping for columns [%[1]s] to [%[2]s]
+	/// \brief Union array grouping for columns [%[1]s] to [%[2]s]
 	///
-	// \\property %[3]s`
+	/// \property %[3]s`
 
 	// 1. Class contents
 	// 2. Binder namespace
