@@ -274,15 +274,18 @@ enum class %[1]s
 	procExecuteNoParam = `
 			return StoredProcedure::execute();`
 
-	// 1. paramIndex
-	// 2. param
-	procBindFmt = `
-			_stmt.bind(%[1]d, %[2]s);`
+	// 1. bind function (bind/bind_binary)
+	// 2. paramIndex
+	// 3. param
+	procBindInputFmt = `
+			_stmt.%[1]s(%[2]d, %[3]s);`
 
-	// 1. paramIndex
-	// 2. param
-	procBindRetFmt = `
-			_stmt.bind(%[1]d, %[2]s, nanodbc::statement::PARAM_RETURN);`
+	// 1. bind function (bind/bind_binary)
+	// 2. paramIndex
+	// 3. param
+	// 4. param type
+	procBindFmt = `
+			_stmt.%[1]s(%[2]d, %[3]s, %[4]s);`
 
 	procDestructorWithFlushDef = `
 			flush_on_destruct();`

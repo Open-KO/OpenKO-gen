@@ -15,10 +15,14 @@ import (
 )
 
 const (
-	modelPackageOutDir  = "model"
-	binderPackageOutDir = "binder"
-	procPackageOutDir   = "Procedures"
-	procCgHelperDir     = "cppGen/cgHelpers/Procedures"
+	modelPackageOutDir    = "model"
+	binderPackageOutDir   = "binder"
+	procPackageOutDir     = "Procedures"
+	procCgHelperDir       = "cppGen/cgHelpers/Procedures"
+	nanodbcParamTypeOut   = "nanodbc::statement::PARAM_OUTPUT"
+	nanodbcParamTypeRet   = "nanodbc::statement::PARAM_RETURN"
+	nanodbcBindFunc       = "bind"
+	nanodbcBindBinaryFunc = "bind_binary"
 )
 
 type ModuleDef struct {
@@ -465,7 +469,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		if validProcs[i].HasReturn != nil && *validProcs[i].HasReturn {
 			hasOutputOrReturn = true
 			procCallStr = fmt.Sprintf(procCallWithRetFmt, validProcs[i].Name, pList)
-			paramBindings.WriteString(fmt.Sprintf(procBindRetFmt, 0, "returnValue"))
+			paramBindings.WriteString(fmt.Sprintf(procBindFmt, nanodbcBindFunc, 0, "returnValue", nanodbcParamTypeRet))
 			funcParamList = append(funcParamList, []string{"int*", "returnValue"})
 		} else {
 			posMod = -1
@@ -484,40 +488,46 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 				template.AddInclude("<ctime>")
 			}
 
-			_type := ""
+			bindFunc := nanodbcBindFunc
 			if cppType == "std::string" || param.Type == tsql.Text {
 				cppType = "char*"
 			} else if strings.Contains(cppType, "vector") {
-				// TODO: Figure out best binding type
-				cppType = "char*"
+				bindFunc = nanodbcBindBinaryFunc
 			} else if cppType == "uint8_t" {
 				// upcast since nanodbc can't handle tinyint right
 				cppType = "int16_t"
 			}
+
+			_type := cppType
+
 			if param.IsOutput {
-				_type = cppType
 				hasOutputOrReturn = true
 
 				if !strings.HasSuffix(_type, "*") {
 					_type = fmt.Sprintf(ptrFmt, _type)
 				}
 			} else {
-				_type = fmt.Sprintf(constFmt, cppType)
+				_type = fmt.Sprintf(constFmt, _type)
+
+				// pass binary fields (std::vector<uint8_t>) by reference
+				if bindFunc == nanodbcBindBinaryFunc {
+					_type += "&"
+				}
 			}
 			isPtr := strings.HasSuffix(_type, "*")
 			funcParamList = append(funcParamList, []string{_type, param.ParamName})
 
-			bindFmt := procBindFmt
-			if param.IsOutput {
-				bindFmt = procBindRetFmt
-			}
 			// TODO: likely need to add modifiers like .c_str()
 			p := param.ParamName
-			if !isPtr {
+			if !isPtr && bindFunc != nanodbcBindBinaryFunc {
 				p = "&" + p
 			}
-			binding := fmt.Sprintf(bindFmt, param.ParamIndex+posMod, p)
-			paramBindings.WriteString(binding)
+
+			if param.IsOutput {
+				paramBindings.WriteString(fmt.Sprintf(procBindFmt, bindFunc, param.ParamIndex+posMod, p, nanodbcParamTypeOut))
+			} else {
+				paramBindings.WriteString(fmt.Sprintf(procBindInputFmt, bindFunc, param.ParamIndex+posMod, p))
+			}
 		}
 
 		executeBody := procExecuteNoParam
