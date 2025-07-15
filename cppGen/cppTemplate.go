@@ -66,6 +66,10 @@ func (d *CppTemplate) AddMethod(def igenerator.MethodDef) {
 		pure = " const"
 	}
 
+	if def.IsThrow {
+		pure += " noexcept(false)"
+	}
+
 	returnType := ""
 	if len(def.ReturnType) > 0 {
 		returnType = fmt.Sprintf("%s ", def.ReturnType)

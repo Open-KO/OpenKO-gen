@@ -17,9 +17,9 @@ import (
 const (
 	modelPackageOutDir    = "model"
 	binderPackageOutDir   = "binder"
-	procPackageOutDir     = "Procedures"
+	procPackageOutDir     = "StoredProc"
 	procCgHelperDir       = "cppGen/cgHelpers/Procedures"
-	nanodbcParamTypeOut   = "nanodbc::statement::PARAM_OUTPUT"
+	nanodbcParamTypeOut   = "nanodbc::statement::PARAM_OUT"
 	nanodbcParamTypeRet   = "nanodbc::statement::PARAM_RETURN"
 	nanodbcBindFunc       = "bind"
 	nanodbcBindBinaryFunc = "bind_binary"
@@ -433,7 +433,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 	template.AddInclude("<memory>")
 
 	procFileContents := strings.Builder{}
-	procFileContents.WriteString(fmt.Sprintf(namespaceOpen, "procedures"))
+	procFileContents.WriteString(fmt.Sprintf(namespaceOpen, "storedProc"))
 	procFileContents.WriteString("\n")
 	// Read any manually coded files:
 	manFiles, err := filepath.Glob(filepath.Join(procCgHelperDir, "*.ixx"))
@@ -537,11 +537,13 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 
 		classTemplate.AddInclude("<memory>")
 		executeDef := igenerator.MethodDef{
-			ReturnType:  "std::weak_ptr<nanodbc::result>",
-			Name:        "execute",
-			Params:      funcParamList,
-			Body:        executeBody,
-			Description: "Executes the stored procedure",
+			IsThrow:    true,
+			ReturnType: "std::weak_ptr<nanodbc::result>",
+			Name:       "execute",
+			Params:     funcParamList,
+			Body:       executeBody,
+			Description: `Executes the stored procedure
+		/// \throws nanodbc::database_error`,
 		}
 		classTemplate.AddMethod(executeDef)
 

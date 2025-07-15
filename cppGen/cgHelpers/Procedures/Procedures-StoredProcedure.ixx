@@ -1,8 +1,8 @@
 	export class StoredProcedure
 	{
 	protected:
-		StoredProcedure(nanodbc::connection& conn)
-			: _conn(conn), _stmt(conn)
+		StoredProcedure(std::shared_ptr<nanodbc::connection> conn)
+			: _conn(conn), _stmt(*conn.get())
 		{
 			_flushed = false;
 		}
@@ -23,8 +23,9 @@
 		}
 
 		/// \brief Executes the currently prepared statement
+		/// \throws nanodbc::database_error
 		/// \returns a result set, if applicable
-		std::weak_ptr<nanodbc::result> execute()
+		std::weak_ptr<nanodbc::result> execute() noexcept(false)
 		{
 			_flushed = false;
 			_result = std::make_shared<nanodbc::result>(_stmt.execute());
@@ -58,7 +59,7 @@
 		}
 
 	protected:
-		nanodbc::connection& _conn;
+		std::shared_ptr<nanodbc::connection> _conn;
 		nanodbc::statement _stmt;
 		std::shared_ptr<nanodbc::result> _result;
 		bool _flushed;

@@ -251,7 +251,7 @@ enum class %[1]s
 	export class %[1]s : public StoredProcedure
 	{
 	public:
-		%[1]s(nanodbc::connection& conn) 
+		%[1]s(std::shared_ptr<nanodbc::connection> conn) 
 			: StoredProcedure(conn)
 		{
 			_stmt.prepare("%[2]s");

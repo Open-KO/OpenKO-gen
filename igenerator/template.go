@@ -22,4 +22,5 @@ type MethodDef struct {
 	IsPtrReceiver bool
 	IsStatic      bool
 	IsPure        bool
+	IsThrow       bool
 }
