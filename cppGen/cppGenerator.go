@@ -209,14 +209,25 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		for j := range filterDef.Columns {
 			colNames = append(colNames, fmt.Sprintf(`"%s"`, filterDef.Columns[j].Name))
 		}
+		retType := "const std::unordered_set<std::string>"
 		colNameDef := igenerator.MethodDef{
 			IsStatic:    true,
-			ReturnType:  "const std::unordered_set<std::string>&",
+			ReturnType:  retType + "&",
 			Name:        "ColumnNames",
-			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(colNames, ", "), "columnNames"),
+			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(colNames, ", "), "columnNames", retType),
 			Description: "Returns a set of column names for the table",
 		}
 		template.AddMethod(colNameDef)
+
+		retType = "const std::vector<std::string>"
+		orderedColNameDef := igenerator.MethodDef{
+			IsStatic:    true,
+			ReturnType:  retType + "&",
+			Name:        "OrderedColumnNames",
+			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(colNames, ", "), "orderedColumnNames", retType),
+			Description: "Returns an ordered vector of column names for the table",
+		}
+		template.AddMethod(orderedColNameDef)
 
 		// Generate a BlobColumns() func
 		blobCols := []string{}
@@ -225,11 +236,12 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 				blobCols = append(blobCols, fmt.Sprintf(`"%s"`, filterDef.Columns[j].Name))
 			}
 		}
+		retType = "const std::unordered_set<std::string>"
 		blobColNameDef := igenerator.MethodDef{
 			IsStatic:    true,
-			ReturnType:  "const std::unordered_set<std::string>&",
+			ReturnType:  retType + "&",
 			Name:        "BlobColumns",
-			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(blobCols, ", "), "blobColumns"),
+			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(blobCols, ", "), "blobColumns", retType),
 			Description: "Returns a set of blob column names for the table",
 		}
 		template.AddMethod(blobColNameDef)

@@ -163,8 +163,9 @@ enum class %[1]s
 
 	// 1: list of column names, string wrapped and CSV
 	// 2: Static const name
+	// 3: return type
 	funcColumnNamesFmt = `
-			static const std::unordered_set<std::string> %[2]s =
+			static %[3]s %[2]s =
 			{
 				%[1]s
 			};
