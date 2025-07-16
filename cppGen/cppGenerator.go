@@ -244,32 +244,32 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		}
 		template.AddMethod(dbTypeDef)
 
+		// Generate a PrimaryKeyColumns func
+		pkNames := strings.Builder{}
+		pkPropDefs := []jsonSchema.Column{}
+		for j := range pk.Columns {
+			if j > 0 {
+				pkNames.WriteString(", ")
+			}
+			pkNames.WriteString(fmt.Sprintf(`"%s"`, pk.Columns[j]))
+
+			// add associated property name to list
+			for x := range filterDef.Columns {
+				if filterDef.Columns[x].Name == pk.Columns[j] {
+					pkPropDefs = append(pkPropDefs, filterDef.Columns[x])
+				}
+			}
+		}
+		pkColumnsDef := igenerator.MethodDef{
+			IsStatic:    true,
+			ReturnType:  "const std::vector<std::string>&",
+			Name:        "PrimaryKey",
+			Body:        fmt.Sprintf(funcPrimaryKeyFmt, pkNames.String()),
+			Description: "Returns the columns associated with the table's Primary Key",
+		}
+		template.AddMethod(pkColumnsDef)
+
 		if len(pk.Columns) > 0 {
-			// Generate a PrimaryKeyColumns func
-			pkNames := strings.Builder{}
-			pkPropDefs := []jsonSchema.Column{}
-			for j := range pk.Columns {
-				if j > 0 {
-					pkNames.WriteString(", ")
-				}
-				pkNames.WriteString(fmt.Sprintf(`"%s"`, pk.Columns[j]))
-
-				// add associated property name to list
-				for x := range filterDef.Columns {
-					if filterDef.Columns[x].Name == pk.Columns[j] {
-						pkPropDefs = append(pkPropDefs, filterDef.Columns[x])
-					}
-				}
-			}
-			pkColumnsDef := igenerator.MethodDef{
-				IsStatic:    true,
-				ReturnType:  "const std::vector<std::string>&",
-				Name:        "PrimaryKey",
-				Body:        fmt.Sprintf(funcPrimaryKeyFmt, pkNames.String()),
-				Description: "Returns the columns associated with the table's Primary Key",
-			}
-			template.AddMethod(pkColumnsDef)
-
 			// Generate a MapKey() func
 			retType := ""
 			body := ""
