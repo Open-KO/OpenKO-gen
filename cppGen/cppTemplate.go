@@ -52,7 +52,11 @@ func (d *CppTemplate) AddMethod(def igenerator.MethodDef) {
 	for i := range def.Params {
 		if i > 0 {
 			params += ", "
+			if i%3 == 0 {
+				params += "\n\t\t\t"
+			}
 		}
+
 		params += fmt.Sprintf("%s %s", def.Params[i][0], def.Params[i][1])
 	}
 

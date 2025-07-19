@@ -488,7 +488,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			procCallStr = fmt.Sprintf(procCallFmt, validProcs[i].Name, pList)
 		}
 
-		for _, param := range validProcs[i].Params {
+		for j, param := range validProcs[i].Params {
 			cppType, ok := TSqlTypeMapping[param.Type]
 			if !ok {
 				return fmt.Errorf("unimplemented T-SQL type: %s", param.Type)
@@ -532,6 +532,11 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 				}
 			}
 			isPtr := strings.HasSuffix(_type, "*")
+
+			// do try do to make twostars happy
+			if j == 0 {
+				_type = "\n\t\t\t" + _type
+			}
 			funcParamList = append(funcParamList, []string{_type, param.ParamName})
 
 			// TODO: likely need to add modifiers like .c_str()
