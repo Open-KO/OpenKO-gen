@@ -34,48 +34,48 @@
 
 	public:
 		/// \brief Flushes any output variables or return values by reading any and all result sets
-        void flush()
-        {
-            if (_flushed
-                || _result == nullptr)
-                return;
+		void flush()
+		{
+			if (_flushed
+				|| _result == nullptr)
+				return;
 
-            try
-            {
-                do
-                {
-                    skip_rows_in_result_set();
-                }
-                while (_result->next_result());
-            }
-            catch (const nanodbc::database_error& ex)
-            {
-                // This will trigger normally if no result sets are available,
-                // which is typical behaviour for most stored procedures.
-                if (ex.state() != SqlState_InvalidCursorState)
-                    throw;
-            }
+			try
+			{
+				do
+				{
+					skip_rows_in_result_set();
+				}
+				while (_result->next_result());
+			}
+			catch (const nanodbc::database_error& ex)
+			{
+				// This will trigger normally if no result sets are available,
+				// which is typical behaviour for most stored procedures.
+				if (ex.state() != SqlState_InvalidCursorState)
+					throw;
+			}
 
-            _flushed = true;
-        }
+			_flushed = true;
+		}
 
 	protected:
-	    void skip_rows_in_result_set()
-        {
-            try
-            {
-                while (_result->next())
-                {
-                }
-            }
-            catch (const nanodbc::database_error& ex)
-            {
-                // This will trigger normally if no result sets are available,
-                // which is typical behaviour for most stored procedures.
-                if (ex.state() != SqlState_InvalidCursorState)
-                    throw;
-            }
-        }
+		void skip_rows_in_result_set()
+		{
+			try
+			{
+				while (_result->next())
+				{
+				}
+			}
+			catch (const nanodbc::database_error& ex)
+			{
+				// This will trigger normally if no result sets are available,
+				// which is typical behaviour for most stored procedures.
+				if (ex.state() != SqlState_InvalidCursorState)
+					throw;
+			}
+		}
 
 		std::shared_ptr<nanodbc::connection> _conn;
 		nanodbc::statement _stmt;
