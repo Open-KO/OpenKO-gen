@@ -2,7 +2,7 @@ package gormGen
 
 import (
 	"fmt"
-	"github.com/Open-KO/kodb-godef"
+	"github.com/Open-KO/kodb-godef/jsonSchema"
 	cgHelpers "openko-gen/gormGen/cgHelpers/kogen"
 	"openko-gen/igenerator"
 	"openko-gen/utils"
@@ -195,7 +195,7 @@ func generateInsertTemplateBody(def jsonSchema.TableDef) string {
 	for i := range def.Columns {
 		columnNames = append(columnNames, fmt.Sprintf("[%s]", def.Columns[i].Name))
 		values := "%s"
-		if def.Columns[i].IsHexProtect {
+		if def.Columns[i].ForceBinary {
 			ln := "MAX"
 			if def.Columns[i].Length > 0 {
 				ln = fmt.Sprintf("%d", def.Columns[i].Length)
@@ -232,7 +232,7 @@ func generateInsertDataBody(def jsonSchema.TableDef) string {
 	propRefs := []string{}
 	for i := range def.Columns {
 		values := "%s"
-		if def.Columns[i].IsHexProtect {
+		if def.Columns[i].ForceBinary {
 			ln := "MAX"
 			if def.Columns[i].Length > 0 {
 				ln = fmt.Sprintf("%d", def.Columns[i].Length)
@@ -307,7 +307,7 @@ func GenerateSelectVar(def jsonSchema.TableDef) (selectVar string, colNames []st
 	cols := []string{}
 	for i := range def.Columns {
 		colName := def.Columns[i].Name
-		if def.Columns[i].IsHexProtect {
+		if def.Columns[i].ForceBinary {
 			ln := "MAX"
 			if def.Columns[i].Length > 0 {
 				ln = fmt.Sprintf("%d", def.Columns[i].Length)

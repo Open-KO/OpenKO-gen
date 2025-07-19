@@ -2,7 +2,7 @@ package gormGen
 
 import (
 	"fmt"
-	"github.com/Open-KO/kodb-godef"
+	"github.com/Open-KO/kodb-godef/jsonSchema"
 	"openko-gen/igenerator"
 	"sort"
 	"strings"

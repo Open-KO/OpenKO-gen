@@ -2,9 +2,9 @@ package cppGen
 
 import (
 	"fmt"
-	"github.com/Open-KO/kodb-godef"
 	"github.com/Open-KO/kodb-godef/enums/profile"
 	"github.com/Open-KO/kodb-godef/enums/tsql"
+	"github.com/Open-KO/kodb-godef/jsonSchema"
 	"openko-gen/igenerator"
 	"openko-gen/utils"
 	"os"

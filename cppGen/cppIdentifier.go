@@ -2,8 +2,8 @@ package cppGen
 
 import (
 	"fmt"
-	"github.com/Open-KO/kodb-godef"
 	"github.com/Open-KO/kodb-godef/enums/tsql"
+	"github.com/Open-KO/kodb-godef/jsonSchema"
 	"strings"
 )
 
@@ -56,7 +56,7 @@ func (this CppIdentifier) GetType(property jsonSchema.Column) (cppType string, e
 		return "", fmt.Errorf("cppIdentifier.GetType - unsupported type: %s", property.Type)
 	}
 
-	if property.IsHexProtect {
+	if property.ForceBinary {
 		cppType = "std::vector<uint8_t>"
 	}
 
