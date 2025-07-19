@@ -494,6 +494,11 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 				return fmt.Errorf("unimplemented T-SQL type: %s", param.Type)
 			}
 
+			// binary override flag
+			if param.ForceBinary {
+				cppType = "std::vector<uint8_t>"
+			}
+
 			if strings.Contains(cppType, "int") {
 				template.AddInclude("<cstdint>")
 			} else if strings.Contains(cppType, "time_t") {
