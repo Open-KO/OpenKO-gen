@@ -2,9 +2,6 @@ package cppGen
 
 import (
 	"fmt"
-	"github.com/Open-KO/kodb-godef/enums/profile"
-	"github.com/Open-KO/kodb-godef/enums/tsql"
-	"github.com/Open-KO/kodb-godef/jsonSchema"
 	"openko-gen/igenerator"
 	"openko-gen/utils"
 	"os"
@@ -12,6 +9,10 @@ import (
 	"slices"
 	"sort"
 	"strings"
+
+	"github.com/Open-KO/kodb-godef/enums/profile"
+	"github.com/Open-KO/kodb-godef/enums/tsql"
+	"github.com/Open-KO/kodb-godef/jsonSchema"
 )
 
 const (
@@ -443,6 +444,8 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 	template := CppTemplate{}
 	template.AddInclude("<nanodbc/nanodbc.h>")
 	template.AddInclude("<memory>")
+	template.AddInclude("<string>")
+	template.AddInclude("ModelUtil")
 
 	procFileContents := strings.Builder{}
 	procFileContents.WriteString(fmt.Sprintf(namespaceOpen, "storedProc"))
@@ -510,6 +513,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 				cppType = "char*"
 			} else if strings.Contains(cppType, "vector") {
 				bindFunc = nanodbcBindBinaryFunc
+				template.AddInclude("<vector>")
 			} else if cppType == "uint8_t" {
 				// upcast since nanodbc can't handle tinyint right
 				cppType = "int16_t"
@@ -552,6 +556,26 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			}
 		}
 
+		// Generate a Query() func
+		funcQueryDef := igenerator.MethodDef{
+			IsStatic:    true,
+			ReturnType:  "const std::string&",
+			Name:        "Query",
+			Body:        fmt.Sprintf(procFuncQueryFmt, procCallStr),
+			Description: "Returns the query associated with preparing this statement",
+		}
+		classTemplate.AddMethod(funcQueryDef)
+
+		// Generate a DbType func
+		dbTypeDef := igenerator.MethodDef{
+			IsStatic:    true,
+			ReturnType:  "const modelUtil::DbType",
+			Name:        "DbType",
+			Body:        fmt.Sprintf(funcDbTypeFmt, "GAME"), // TODO: real type
+			Description: "Returns the associated database type for the table",
+		}
+		classTemplate.AddMethod(dbTypeDef)
+
 		executeBody := procExecuteNoParam
 		if paramBindings.Len() > 0 {
 			executeBody = fmt.Sprintf(procExecuteFmt, paramBindings.String())
@@ -583,11 +607,10 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 
 		// file contents:
 		// 1. Class Name
-		// 2. Procedure Call prepared statement i.e., {? = CALL LOAD_ACCOUNT_CHARID(?)}
-		// 3. Methods
-		// 4. Proc description
+		// 2. Methods
+		// 3. Proc description
 		partFileStr := fmt.Sprintf(procClassFmt, validProcs[i].ClassName,
-			procCallStr, methods, validProcs[i].Description)
+			methods, validProcs[i].Description)
 		procFileContents.WriteString(partFileStr)
 	}
 

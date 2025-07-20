@@ -243,21 +243,24 @@ enum class %[1]s
 	constFmt    = "const %s"
 
 	// 1. Class Name
-	// 2. Procedure Call prepared statement i.e., {? = CALL LOAD_ACCOUNT_CHARID(?)}
-	// 3. Methods
-	// 4. Class description
+	// 2. Methods
+	// 3. Class description
 	procClassFmt = `
-	/// \brief %[4]s
+	/// \brief %[3]s
 	/// \class %[1]s
 	export class %[1]s : public StoredProcedure
 	{
 	public:
+		%[1]s() 
+			: StoredProcedure()
+		{
+		}
+
 		%[1]s(std::shared_ptr<nanodbc::connection> conn) 
 			: StoredProcedure(conn)
 		{
-			_stmt.prepare("%[2]s");
 		}
-%[3]s
+%[2]s
 	};
 `
 	// 1. proc name
@@ -267,12 +270,14 @@ enum class %[1]s
 
 	// 1. binding list
 	procExecuteFmt = `
+			prepare(Query());
 			_stmt.reset_parameters();
 %[1]s
 	
 			return StoredProcedure::execute();`
 
 	procExecuteNoParam = `
+			prepare(Query());
 			return StoredProcedure::execute();`
 
 	// 1. bind function (bind/bind_binary)
@@ -290,4 +295,9 @@ enum class %[1]s
 
 	procDestructorWithFlushDef = `
 			flush_on_destruct();`
+
+	// 1: query
+	procFuncQueryFmt = `
+			static const std::string query = "%[1]s";
+			return query;`
 )

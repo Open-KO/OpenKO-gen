@@ -1,10 +1,28 @@
 	export class StoredProcedure
 	{
 	protected:
-		StoredProcedure(std::shared_ptr<nanodbc::connection> conn)
-			: _conn(conn), _stmt(*conn.get())
+		StoredProcedure()
 		{
 			_flushed = false;
+		}
+
+		StoredProcedure(std::shared_ptr<nanodbc::connection> conn)
+			: StoredProcedure()
+		{
+			_conn = conn;
+		}
+
+		/// \brief Opens and prepares the statement with the associated query
+		/// \throws nanodbc::database_error
+		void prepare(const std::string& query) noexcept(false)
+		{
+			if (_stmt.open())
+				return;
+
+			if (_conn == nullptr)
+				throw std::logic_error("prepare() unexpectedly called before a connection has been assigned");
+
+			_stmt = nanodbc::statement(*_conn.get(), query);
 		}
 
 		/// \brief Flushes any output variables or return values on destruction
@@ -33,6 +51,18 @@
 		}
 
 	public:
+		/// \brief Sets the associated database connection.
+		void set_connection(const std::shared_ptr<nanodbc::connection>& conn)
+		{
+			_result.reset();
+
+			if (_stmt.open())
+				_stmt.close();
+
+			_conn = conn;
+			_flushed = false;
+		}
+
 		/// \brief Flushes any output variables or return values by reading any and all result sets
 		void flush()
 		{
