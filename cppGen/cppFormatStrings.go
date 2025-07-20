@@ -214,12 +214,6 @@ enum class %[1]s
 	funcPropBindingGetFmt = `
 				m.%[2]s = result.get<%[1]s>(colIndex);`
 
-	// 1. original type
-	// 2. upcast type
-	// 3. Property name
-	funcPropBindingUpCastFmt = `
-			m.%[3]s = static_cast<%[1]s>(result.get<%[2]s>(colIndex));`
-
 	// 1. Property Name
 	funcPropBindingDateCastFmt = `
 			m.%[1]s = binderUtil::CTimeFromDbTime(result.get<nanodbc::timestamp>(colIndex));`

@@ -2,14 +2,14 @@ package cppGen
 
 import (
 	"fmt"
-	"github.com/Open-KO/kodb-godef/enums/dbType"
-	"github.com/Open-KO/kodb-godef/enums/profile"
-	"github.com/Open-KO/kodb-godef/enums/tsql"
-	"github.com/Open-KO/kodb-godef/jsonSchema"
 	"openko-gen/igenerator"
 	"openko-gen/utils"
 	"regexp"
 	"strings"
+
+	"github.com/Open-KO/kodb-godef/enums/dbType"
+	"github.com/Open-KO/kodb-godef/enums/profile"
+	"github.com/Open-KO/kodb-godef/jsonSchema"
 )
 
 const (
@@ -321,10 +321,7 @@ func (d *CppTemplate) GenerateBinderClass() (string, error) {
 		// add binding method
 		var propBindBody string
 		_type := stripOptional(cppType)
-		if field.Type == tsql.TinyInt {
-			upcast := "int16_t"
-			propBindBody = fmt.Sprintf(funcPropBindingUpCastFmt, _type, upcast, field.PropertyName)
-		} else if strings.Contains(cppType, "std::time_t") {
+		if strings.Contains(cppType, "std::time_t") {
 			propBindBody = fmt.Sprintf(funcPropBindingDateCastFmt, field.PropertyName)
 		} else if field.AllowNull {
 			propBindBody = fmt.Sprintf(funcPropBindingGetFmt, _type, field.PropertyName)
