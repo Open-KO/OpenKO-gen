@@ -514,9 +514,6 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			} else if strings.Contains(cppType, "vector") {
 				bindFunc = nanodbcBindBinaryFunc
 				template.AddInclude("<vector>")
-			} else if cppType == "uint8_t" {
-				// upcast since nanodbc can't handle tinyint right
-				cppType = "int16_t"
 			}
 
 			_type := cppType
