@@ -321,16 +321,22 @@ func (d *CppTemplate) GenerateBinderClass() (string, error) {
 		// add binding method
 		var propBindBody string
 		_type := stripOptional(cppType)
+
 		if strings.Contains(cppType, "std::time_t") {
-			propBindBody = fmt.Sprintf(funcPropBindingDateCastFmt, field.PropertyName)
+			castCppType := "nanodbc::timestamp"
+			castFunc := "binderUtil::CTimeFromDbTime"
+
+			if field.AllowNull {
+				propBindBody = fmt.Sprintf(funcOptionalPropBindingCastFmt, castCppType, field.PropertyName, castFunc)
+			} else {
+				propBindBody = fmt.Sprintf(funcPropBindingCastFmt, castCppType, field.PropertyName, castFunc)
+			}
 		} else if field.AllowNull {
-			propBindBody = fmt.Sprintf(funcPropBindingGetFmt, _type, field.PropertyName)
+			propBindBody = fmt.Sprintf(funcPropBindingFmt, cppType, field.PropertyName)
 		} else {
 			propBindBody = fmt.Sprintf(funcPropBindingFmt, _type, field.PropertyName)
 		}
-		if field.AllowNull {
-			propBindBody = fmt.Sprintf(funcOptionalPropBindingFmt, _type, field.PropertyName, propBindBody)
-		}
+
 		propBindDef := igenerator.MethodDef{
 			IsStatic:   true,
 			ReturnType: "void",

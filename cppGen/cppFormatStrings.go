@@ -211,24 +211,23 @@ enum class %[1]s
 
 	// 1. cppType
 	// 2. PropertyName
-	funcPropBindingGetFmt = `
-				m.%[2]s = result.get<%[1]s>(colIndex);`
+	// 3. cast function
+	funcPropBindingCastFmt = `
+			%[1]s tmpValue = {};
+			result.get_ref<%[1]s>(colIndex, tmpValue);
+			m.%[2]s = %[3]s(tmpValue);`
 
-	// 1. Property Name
-	funcPropBindingDateCastFmt = `
-			m.%[1]s = binderUtil::CTimeFromDbTime(result.get<nanodbc::timestamp>(colIndex));`
-
-	// 1. cppType, optional stripped.  upscale and static cast back Tinyint to SmallInt
+	// 1. cppType to cast to
 	// 2. PropertyName
-	// 3. proper binding func
-	funcOptionalPropBindingFmt = `
-			if (result.is_null(colIndex))
-			{
-				m.%[2]s.reset();
-			}
+	// 3. cast function
+	funcOptionalPropBindingCastFmt = `
+			std::optional<%[1]s> tmpValue;
+			result.get_ref<std::optional<%[1]s>>(colIndex, tmpValue);
+
+			if (tmpValue.has_value())
+				m.%[2]s = %[3]s(*tmpValue);
 			else
-			{%[3]s
-			}`
+				m.%[2]s.reset();`
 
 	// 1. Type
 	constRefFmt = "const %s&"
