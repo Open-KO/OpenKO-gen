@@ -238,9 +238,11 @@ enum class %[1]s
 	// 1. Class Name
 	// 2. Methods
 	// 3. Class description
+	// 4. additional doyxgen
 	procClassFmt = `
 	/// \brief %[3]s
 	/// \class %[1]s
+%[4]s
 	export class %[1]s : public StoredProcedure
 	{
 	public:

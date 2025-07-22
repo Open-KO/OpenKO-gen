@@ -568,7 +568,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			IsStatic:    true,
 			ReturnType:  "const modelUtil::DbType",
 			Name:        "DbType",
-			Body:        fmt.Sprintf(funcDbTypeFmt, "GAME"), // TODO: real type
+			Body:        fmt.Sprintf(funcDbTypeFmt, validProcs[i].Database),
 			Description: "Returns the associated database type for the table",
 		}
 		classTemplate.AddMethod(dbTypeDef)
@@ -602,12 +602,14 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 
 		methods := strings.Join(classTemplate.methods, "\n")
 
+		addlDoxygen := fmt.Sprintf(getProcXRefFmt(validProcs[i].Database), validProcs[i].Name, validProcs[i].Description)
+
 		// file contents:
 		// 1. Class Name
 		// 2. Methods
 		// 3. Proc description
 		partFileStr := fmt.Sprintf(procClassFmt, validProcs[i].ClassName,
-			methods, validProcs[i].Description)
+			methods, validProcs[i].Description, addlDoxygen)
 		procFileContents.WriteString(partFileStr)
 	}
 

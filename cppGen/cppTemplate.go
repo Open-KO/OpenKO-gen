@@ -266,7 +266,7 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 	doxygen := strings.Builder{}
 	doxygen.WriteString(fmt.Sprintf("\t/// \\brief [%s] %s\n", d.def.Name, d.def.Description))
 	doxygen.WriteString(fmt.Sprintf("\t/// \\class %s\n", d.def.ClassName))
-	doxygen.WriteString(fmt.Sprintf(getDbTypeXRefFmt(d.def.Database), d.def.Name, d.def.Description))
+	doxygen.WriteString(fmt.Sprintf(getDbTypeXRefFmt(d.def.Database, d.moduleDef.OutDir), d.def.Name, d.def.Description))
 
 	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.moduleDef.namespace)
 	return fmt.Sprintf(modelClassFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String(), binderNs), nil
@@ -386,15 +386,20 @@ func isEnumType(cppType string) bool {
 	return false
 }
 
-func getDbTypeXRefFmt(databaseType dbType.DbType) string {
-	switch databaseType {
-	case dbType.ACCOUNT:
-		return "\t/// \\xrefitem acctdb \"Account Database\" \"Account Database\" %s %s"
-	case dbType.GAME:
-		return "\t/// \\xrefitem gamedb \"Game Database\" \"Game Database\" %s %s"
-	case dbType.LOG:
-		return "\t/// \\xrefitem logdb \"Log Database\" \"Log Database\" %s %s"
+func getDbTypeXRefFmt(databaseType dbType.DbType, extractName string) string {
+	dbId := fmt.Sprintf("db_%s", databaseType)
+	dbName := fmt.Sprintf("%s Database", databaseType)
+	if extractName != "" {
+		dbId += fmt.Sprintf("_%s", extractName)
+		dbName += fmt.Sprintf(" - %s Library", extractName)
 	}
+	retStr := fmt.Sprintf("\t/// \\xrefitem %[1]s \"%[2]s\" \"%[2]s\"", dbId, dbName)
+	return retStr + " %s %s"
+}
 
-	return ""
+func getProcXRefFmt(databaseType dbType.DbType) string {
+	dbId := fmt.Sprintf("dbproc_%s", databaseType)
+	dbName := fmt.Sprintf("%s Database Stored Procedures", databaseType)
+	retStr := fmt.Sprintf("\t/// \\xrefitem %[1]s \"%[2]s\" \"%[2]s\"", dbId, dbName)
+	return retStr + " %s %s"
 }
