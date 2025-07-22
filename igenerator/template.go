@@ -1,7 +1,7 @@
 package igenerator
 
 import (
-	"github.com/Open-KO/OpenKO-db/jsonSchema"
+	"github.com/Open-KO/kodb-godef/jsonSchema"
 )
 
 type Template interface {
@@ -20,4 +20,7 @@ type MethodDef struct {
 	Body          string
 	Description   string
 	IsPtrReceiver bool
+	IsStatic      bool
+	IsPure        bool
+	IsThrow       bool
 }

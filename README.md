@@ -9,9 +9,10 @@ The goal of this project is to:
 ## Dependencies
 The following commands assume that you have a terminal open in the root folder of the project.
 
-The [OpenKO-db](https://github.com/Open-KO/OpenKO-db) and [OpenKO-gorm](https://github.com/Open-KO/OpenKO-gorm) projects are submodules:
+The [OpenKO-db](https://github.com/Open-KO/OpenKO-db), [OpenKO-gorm](https://github.com/Open-KO/OpenKO-gorm), and [OpenKO-db-modules](https://github.com/Open-KO/OpenKO-db-modules) projects are submodules:
 * `OpenKO-db`: Schema definitions in OpenKO-db/jsonSchema are used to generate code.
 * `OpenKO-gorm`: The `gorm` language option generates the gorm model library.  This library is imported to [kodb-util](https://github.com/Open-KO/kodb-util) to perform import/export tasks
+* `OpenKO-db-modules`: The `cpp` language option generates a c++ model library with doxygen-compliant comments.
 
 
 To fetch submodule updates:
@@ -49,7 +50,7 @@ Usage of openko-gen.exe:
   -clean
     	Cleans the output directory
   -l string
-    	Language/library to generate code for.  Valid options are: [gorm] (default "gorm")
+    	Language/library to generate code for.  Valid options are: gorm, cpp (default "gorm")
   -list
     	Lists supported language/library information
   -o string
@@ -61,10 +62,18 @@ Usage of openko-gen.exe:
 ```
 
 ## Output
+```
 -l gorm
 Description: Go Object Relational Mapping (gorm) model library; built for use in the kodb-util project
-Default Output: openko-gorm/
-Artifact Produced: openko-gorm
+Default Output: OpenKO-gorm/
+Artifact Produced: OpenKO-gorm
+```
+```
+-l cpp
+Description: C++ model and nanodbc binder modules with doxygen-compliant documentation
+Default Output: OpenKO-db-modules/
+Artifact Produced: OpenKO-db-modules
+```
 
 
 ## Building the utility program

@@ -1,5 +1,5 @@
 module openko-gen
 
-go 1.24.1
+go 1.24.4
 
-require github.com/Open-KO/OpenKO-db v0.1.1
+require github.com/Open-KO/kodb-godef v0.1.10

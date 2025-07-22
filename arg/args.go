@@ -4,18 +4,16 @@ import (
 	"flag"
 	"fmt"
 	"openko-gen/utils"
+	"strings"
 )
 
 const (
 	GormLibrary = "gorm"
-
-	// a C++ generator was prototyped but is not officially supported at this time; no valid usecase has been identified yet
-	// would need updating from prototype as the jsonSchema approach has been updated to simplify type identification
-	cppLang = "c++"
+	CppLibrary  = "cpp"
 )
 
 var (
-	supportedLangs = []string{GormLibrary /*, cppLang*/}
+	supportedLangs = []string{GormLibrary, CppLibrary}
 	LangInfoMap    map[string]LangInfo
 )
 
@@ -25,7 +23,13 @@ func init() {
 		Name:             GormLibrary,
 		Description:      "Go Object Relational Mapping (gorm) model library; built for use in the kodb-util project",
 		DefaultOut:       utils.GormLibOut,
-		ArtifactProduced: "openko-gorm",
+		ArtifactProduced: "OpenKO-gorm",
+	}
+	LangInfoMap[CppLibrary] = LangInfo{
+		Name:             CppLibrary,
+		Description:      "C++ model and nanodbc binder modules with doxygen-compliant documentation",
+		DefaultOut:       utils.CppLibOut,
+		ArtifactProduced: "OpenKO-db-modules",
 	}
 }
 
@@ -49,7 +53,7 @@ func GetArgs() (a Args) {
 	clean := flag.Bool("clean", false, "Cleans the output directory")
 	schemaPath := flag.String("openkodb", utils.DefaultSchemaDir, "Path to the openko-db project directory")
 	outputPath := flag.String("o", utils.DefaultOutputDir, "Path to the directory where the generated code will be written. If unspecified uses the language default (see -list)")
-	lang := flag.String("l", GormLibrary, fmt.Sprintf("Language/library to generate code for.  Valid options are: %v", supportedLangs))
+	lang := flag.String("l", GormLibrary, fmt.Sprintf("Language/library to generate code for.  Valid options are: %v", strings.Join(supportedLangs, ", ")))
 	list := flag.Bool("list", false, "Lists supported language/library information")
 	usage := flag.Bool("usage", false, "Prints program usage information - will ignore all other arguments")
 

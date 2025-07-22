@@ -6,3 +6,6 @@
 	path = OpenKO-gorm
 	url = https://github.com/Open-KO/OpenKO-gorm
 	branch = main
+[submodule "OpenKO-db-modules"]
+	path = OpenKO-db-modules
+	url = https://github.com/Open-KO/OpenKO-db-modules.git

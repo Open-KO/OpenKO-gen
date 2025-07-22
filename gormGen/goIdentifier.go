@@ -2,8 +2,8 @@ package gormGen
 
 import (
 	"fmt"
-	"github.com/Open-KO/OpenKO-db/jsonSchema"
-	"github.com/Open-KO/OpenKO-db/jsonSchema/enums/tsql"
+	"github.com/Open-KO/kodb-godef/enums/tsql"
+	"github.com/Open-KO/kodb-godef/jsonSchema"
 )
 
 const optionalFmt = "*%s"
@@ -78,7 +78,7 @@ func getPropRefByType(col jsonSchema.Column) (profRef string) {
 	}
 
 	hexProtect := "false"
-	if col.IsHexProtect {
+	if col.ForceBinary {
 		hexProtect = "true"
 	}
 
