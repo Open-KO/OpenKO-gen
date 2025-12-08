@@ -399,12 +399,14 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 	// combine model content
 	modelHeaderFwdDeclares.WriteString(modelHeaderFileContents.String())
 
+	// generate include guard
 	modelHeaderFilename := fmt.Sprintf(primaryHeaderFileName, modelClassName)
+	modelHeaderGuard := generateIncludeGuard(filepath.Join(moduleDef.OutDir, modelPackageOutDir, modelHeaderFilename))
 
 	// 1. class name (for include guard)
 	// 2. includes
 	// 3. file contents
-	modelHeaderStr := fmt.Sprintf(primaryHeaderFmt, strings.ToUpper(modelClassName), strings.Join(headerIncludes, ""), modelHeaderFwdDeclares.String())
+	modelHeaderStr := fmt.Sprintf(primaryHeaderFmt, modelHeaderGuard, strings.Join(headerIncludes, ""), modelHeaderFwdDeclares.String())
 	outFile := filepath.Join(modelOut, modelHeaderFilename)
 	if fErr := utils.WriteToFile(outFile, modelHeaderStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
@@ -435,8 +437,12 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 	binderHeaderFileContents.WriteString("}")
 	binderSourceFileContents.WriteString("}")
 
-	bindingHeaderStr := fmt.Sprintf(binderHeaderFmt, strings.ToUpper(binderClassName), strings.Join(headerIncludes, ""), binderHeaderFwdDeclares.String(), binderHeaderFileContents.String())
-	outFile = filepath.Join(binderOut, fmt.Sprintf(primaryHeaderFileName, binderClassName))
+	// generate include guard
+	binderHeaderFilename := fmt.Sprintf(primaryHeaderFileName, binderClassName)
+	binderHeaderGuard := generateIncludeGuard(filepath.Join(moduleDef.OutDir, binderPackageOutDir, binderHeaderFilename))
+
+	bindingHeaderStr := fmt.Sprintf(binderHeaderFmt, binderHeaderGuard, strings.Join(headerIncludes, ""), binderHeaderFwdDeclares.String(), binderHeaderFileContents.String())
+	outFile = filepath.Join(binderOut, binderHeaderFilename)
 	if fErr := utils.WriteToFile(outFile, bindingHeaderStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 		return err
@@ -673,11 +679,15 @@ func generateProcClasses(clean bool, validProcs []jsonSchema.ProcDef) (err error
 	procHeaderFileContents.WriteString("}")
 	procSourceFileContents.WriteString("}")
 
+	// generate include guard
+	headerFilename := fmt.Sprintf(primaryHeaderFileName, procPackageOutDir)
+	headerGuard := generateIncludeGuard(filepath.Join(procPackageOutDir, headerFilename))
+
 	// 1. header guard name
 	// 2. includes
 	// 3. file contents
-	procHeaderFileStr := fmt.Sprintf(primaryHeaderFmt, "STOREDPROC", strings.Join(headerIncludes, ""), procHeaderFileContents.String())
-	outFile := filepath.Join(procOut, fmt.Sprintf(primaryHeaderFileName, procPackageOutDir))
+	procHeaderFileStr := fmt.Sprintf(primaryHeaderFmt, headerGuard, strings.Join(headerIncludes, ""), procHeaderFileContents.String())
+	outFile := filepath.Join(procOut, headerFilename)
 	if fErr := utils.WriteToFile(outFile, procHeaderFileStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 		return err

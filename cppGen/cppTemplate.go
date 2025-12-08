@@ -427,3 +427,11 @@ func getProcXRefFmt(databaseType dbType.DbType) string {
 	retStr := fmt.Sprintf("\t/// \\xrefitem %[1]s \"%[2]s\" \"%[2]s\"", dbId, dbName)
 	return retStr + " %s %s"
 }
+
+func generateIncludeGuard(path string) string {
+	path = strings.ReplaceAll(path, ".", "_")
+	path = strings.ReplaceAll(path, "/", "_")
+	path = strings.ReplaceAll(path, "\\", "_")
+	path = strings.ToUpper(path)
+	return path
+}
