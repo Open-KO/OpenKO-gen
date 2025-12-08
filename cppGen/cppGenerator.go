@@ -482,7 +482,7 @@ func generateProcClasses(clean bool, validProcs []jsonSchema.ProcDef) (err error
 	headerTemplate.AddInclude("<nanodbc/nanodbc.h>")
 	headerTemplate.AddInclude("<memory>")
 	headerTemplate.AddInclude("<string>")
-	headerTemplate.AddInclude("\"detail/StoredProcedure.h\"")
+	headerTemplate.AddInclude("<detail/StoredProc/StoredProcedure.h>")
 	headerTemplate.AddInclude("<ModelUtil/ModelUtil.h>")
 
 	sourceTemplate := CppTemplate{}
