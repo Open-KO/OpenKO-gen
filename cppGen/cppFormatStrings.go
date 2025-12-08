@@ -18,7 +18,8 @@ const (
 %[2]s`
 
 	// 1. includes
-	// 2. file contents
+	// 2. model class forward declarations
+	// 3. file contents
 	// TODO: \mainpage doc?
 	// primaryHeaderFmt is the template for the primary header file
 	binderHeaderFmt = `#pragma once
@@ -29,19 +30,25 @@ namespace nanodbc
 	class result;
 }
 
-%[2]s`
+%[2]s
+%[3]s`
 
 	// 1. binder filename
-	// 2. file contents
+	// 2. model filename
+	// 3. file contents
 	// TODO: \mainpage doc?
 	// binderSourceFmt is the template for the binder source file
-	binderSourceFmt = `#include "%[1]s.h"
+	binderSourceFmt = `#include "%[1]s"
+#include "%[2]s"
 #include <nanodbc/nanodbc.h>
 
-%[2]s`
+%[3]s`
 
 	// 1. Class Name
 	modelFwdDeclareFmt = "\n\tclass %[1]s;"
+
+	// 1. Class Name
+	binderFwdDeclareFmt = "\n\tclass %[1]s;"
 
 	// 1. ClassName
 	// 2. Member defs

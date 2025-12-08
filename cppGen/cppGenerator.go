@@ -133,6 +133,7 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 	modelHeaderFwdDeclares := strings.Builder{}
 	binderHeaderFileContents := strings.Builder{}
 	binderSourceFileContents := strings.Builder{}
+	binderHeaderFwdDeclares := strings.Builder{}
 	modelNs := fmt.Sprintf(profile.ModelNsFmt, moduleDef.namespace)
 	binderNs := fmt.Sprintf(profile.BinderNsFmt, moduleDef.namespace)
 	modelHeaderFileContents.WriteString(fmt.Sprintf(namespaceOpen, modelNs))
@@ -140,6 +141,7 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 	binderHeaderFileContents.WriteString(fmt.Sprintf(namespaceOpen, binderNs))
 	binderSourceFileContents.WriteString(fmt.Sprintf(namespaceOpen, binderNs))
 	modelHeaderFwdDeclares.WriteString(fmt.Sprintf(namespaceOpen, binderNs))
+	binderHeaderFwdDeclares.WriteString(fmt.Sprintf(namespaceOpen, modelNs))
 	for i := range validSchemas {
 		isIncluded := moduleDef.namespace == profile.All
 		exportDef := jsonSchema.Export{}
@@ -157,6 +159,9 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 
 		// model forward declare of binder
 		modelHeaderFwdDeclares.WriteString(fmt.Sprintf(modelFwdDeclareFmt, validSchemas[i].ClassName))
+
+		// binder forward declare of model
+		binderHeaderFwdDeclares.WriteString(fmt.Sprintf(binderFwdDeclareFmt, validSchemas[i].ClassName))
 
 		pk := jsonSchema.IndexDef{}
 		for x := range validSchemas[i].Indexes {
@@ -384,6 +389,7 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 
 	// close the namespace
 	modelHeaderFwdDeclares.WriteString("\n}\n\n")
+	binderHeaderFwdDeclares.WriteString("\n}\n")
 	modelHeaderFileContents.WriteString("}")
 	modelSourceFileContents.WriteString("}")
 
@@ -421,14 +427,17 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 	binderHeaderFileContents.WriteString("}")
 	binderSourceFileContents.WriteString("}")
 
-	bindingHeaderStr := fmt.Sprintf(binderHeaderFmt, strings.Join(headerIncludes, ""), binderHeaderFileContents.String())
+	bindingHeaderStr := fmt.Sprintf(binderHeaderFmt, strings.Join(headerIncludes, ""), binderHeaderFwdDeclares.String(), binderHeaderFileContents.String())
 	outFile = filepath.Join(binderOut, fmt.Sprintf(primaryHeaderFileName, binderClassName))
 	if fErr := utils.WriteToFile(outFile, bindingHeaderStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 		return err
 	}
 
-	bindingSourceStr := fmt.Sprintf(binderSourceFmt, binderClassName, binderSourceFileContents.String())
+	relativeModelHeaderPath := filepath.Join("../", modelPackageOutDir, fmt.Sprintf(primaryHeaderFileName, modelClassName))
+	relativeModelHeaderPath = filepath.ToSlash(relativeModelHeaderPath)
+
+	bindingSourceStr := fmt.Sprintf(binderSourceFmt, fmt.Sprintf(primaryHeaderFileName, binderClassName), relativeModelHeaderPath, binderSourceFileContents.String())
 	outFile = filepath.Join(binderOut, fmt.Sprintf(primarySourceFileName, binderClassName))
 	if fErr := utils.WriteToFile(outFile, bindingSourceStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
