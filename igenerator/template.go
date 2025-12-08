@@ -15,6 +15,7 @@ type Template interface {
 
 type MethodDef struct {
 	ReturnType    string
+	ClassName     string
 	Name          string
 	Params        [][]string
 	Body          string

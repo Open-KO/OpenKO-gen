@@ -13,16 +13,16 @@ import (
 )
 
 const (
-	fileNameFmt string = "%[1]s.ixx"
-
 	// 1. {ns}Model or {ns}Binder
-	primaryModuleFileName = "%s.ixx"
-	moduleSuffixModelFmt  = "%sModel"
-	moduleSuffixBinderFmt = "%sBinder"
+	primaryHeaderFileName = "%s.h"
+	primarySourceFileName = "%s.cpp"
+	classSuffixModelFmt   = "%sModel"
+	classSuffixBinderFmt  = "%sBinder"
 )
 
 type CppTemplate struct {
 	def     jsonSchema.TableDef
+	decls   []string
 	methods []string
 	// we use includes for both #include and import
 	// true map val = include
@@ -31,7 +31,6 @@ type CppTemplate struct {
 	consts         map[string]string
 	additionalCode []string
 	namespace      string
-	moduleSuffix   string
 	moduleDef      ModuleDef
 }
 
@@ -84,8 +83,17 @@ func (d *CppTemplate) AddMethod(def igenerator.MethodDef) {
 	// 3. return type
 	// 4. function name
 	// 5. params, csv
-	// 6. function body
-	d.methods = append(d.methods, fmt.Sprintf(methodFmt, def.Description, modifiers, returnType, def.Name, params, def.Body, pure))
+	// 6. pure
+	d.decls = append(d.decls, fmt.Sprintf(methodDeclFmt, def.Description, modifiers, returnType, def.Name, params, pure))
+
+	// 1. description
+	// 2. return type
+	// 3. class name
+	// 4. function name
+	// 5. params, csv
+	// 6. pure
+	// 7. function body
+	d.methods = append(d.methods, fmt.Sprintf(methodImplFmt, def.Description, returnType, def.ClassName, def.Name, params, pure, def.Body))
 }
 
 func (d *CppTemplate) AddInclude(s string) {
@@ -93,25 +101,19 @@ func (d *CppTemplate) AddInclude(s string) {
 		d.includes = make(map[string]bool)
 	}
 
-	key := ""
-	if strings.Contains(s, "\"") || strings.Contains(s, "<") {
-		key = fmt.Sprintf(includeFmt, s)
-		d.includes[key] = true
-	} else {
-		key = fmt.Sprintf(importFmt, s)
-		d.includes[key] = false
-	}
+	key := fmt.Sprintf(includeFmt, s)
+	d.includes[key] = true
 }
 
-func (d *CppTemplate) Generate() (string, error) {
+func (d *CppTemplate) Generate() (string, string, error) {
 	if d.def.ClassName == "" {
-		return "", fmt.Errorf("className not set")
+		return "", "", fmt.Errorf("className not set")
 	}
 
 	return d.GenerateModelClass()
 }
 
-func (d *CppTemplate) GenerateModelClass() (string, error) {
+func (d *CppTemplate) GenerateModelClass() (string, string, error) {
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
 
@@ -142,7 +144,7 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 
 		cppType, err := identifier.GetType(*field)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		// add type-specific imports as needed
@@ -160,7 +162,7 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 		for pattern, unionAggregate := range unionAggregates {
 			matched, err := regexp.Match(pattern, []byte(field.Name))
 			if err != nil {
-				return "", err
+				return "", "", err
 			}
 			if matched {
 				unionAggregate.defs = append(unionAggregate.defs, *field)
@@ -193,7 +195,7 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 
 		cppType, err := identifier.GetType(*field)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		enum := ""
@@ -255,6 +257,14 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 		}
 	}
 
+	decls := strings.Builder{}
+	for i := range d.decls {
+		if i > 0 {
+			decls.WriteString("\n")
+		}
+		decls.WriteString(d.decls[i])
+	}
+
 	methods := strings.Builder{}
 	for i := range d.methods {
 		if i > 0 {
@@ -269,7 +279,9 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 	doxygen.WriteString(fmt.Sprintf(getDbTypeXRefFmt(d.def.Database, d.moduleDef.OutDir), d.def.Name, d.def.Description))
 
 	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.moduleDef.namespace)
-	return fmt.Sprintf(modelClassFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String(), binderNs), nil
+	headerStr := fmt.Sprintf(modelClassHeaderFmt, d.def.ClassName, fieldStrBuilder.String(), decls.String(), doxygen.String(), binderNs)
+	sourceStr := fmt.Sprintf(modelClassSourceFmt, methods.String())
+	return headerStr, sourceStr, nil
 }
 
 func (d *CppTemplate) GenerateModelMember(firstField jsonSchema.Column, field jsonSchema.Column, cppType string, hasEnums bool, enum string, isUnionMember bool) string {
@@ -300,7 +312,7 @@ func (d *CppTemplate) GenerateModelMember(firstField jsonSchema.Column, field js
 	return member
 }
 
-func (d *CppTemplate) GenerateBinderClass() (string, error) {
+func (d *CppTemplate) GenerateBinderClass() (string, string, error) {
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
 	modelNs := fmt.Sprintf(profile.ModelNsFmt, d.moduleDef.namespace)
@@ -315,7 +327,7 @@ func (d *CppTemplate) GenerateBinderClass() (string, error) {
 
 		cppType, err := identifier.GetType(*field)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		// add binding method
@@ -345,11 +357,20 @@ func (d *CppTemplate) GenerateBinderClass() (string, error) {
 				{"const nanodbc::result&", "result"},
 				{"short", "colIndex"},
 			},
+			ClassName:   d.def.ClassName,
 			Name:        fmt.Sprintf("Bind%s", field.PropertyName),
 			Body:        propBindBody,
 			Description: fmt.Sprintf("Binds a result's column to %s", field.PropertyName),
 		}
 		d.AddMethod(propBindDef)
+	}
+
+	decls := strings.Builder{}
+	for i := range d.decls {
+		if i > 0 {
+			decls.WriteString("\n")
+		}
+		decls.WriteString(d.decls[i])
 	}
 
 	methods := strings.Builder{}
@@ -360,11 +381,9 @@ func (d *CppTemplate) GenerateBinderClass() (string, error) {
 		methods.WriteString(d.methods[i])
 	}
 
-	return fmt.Sprintf(binderClassFmt, d.def.ClassName, methods.String(), modelNs), nil
-}
-
-func (d *CppTemplate) GetFileName() string {
-	return fmt.Sprintf(fileNameFmt, fmt.Sprintf("%s-%s", d.moduleSuffix, d.def.ClassName))
+	headerStr := fmt.Sprintf(binderClassHeaderFmt, d.def.ClassName, decls.String(), modelNs)
+	sourceStr := fmt.Sprintf(binderClassSourceFmt, methods.String(), modelNs)
+	return headerStr, sourceStr, nil
 }
 
 func (d *CppTemplate) AddConst(name string, value string) {

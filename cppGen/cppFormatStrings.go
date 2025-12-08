@@ -1,61 +1,56 @@
 package cppGen
 
 const (
-	// 1: Module name
-	// 2. includes
-	// 3. imports
-	// 4: file contents
+	// 1. includes
+	// 2. file contents
 	// TODO: \mainpage doc?
-	// primaryModuleFmt is the template for the primary module file
-	primaryModuleFmt = `module;
+	// primaryHeaderFmt is the template for the primary header file
+	primaryHeaderFmt = `#pragma once
 
-%[2]s
-export module %[1]s;
+%[1]s
+%[2]s`
 
-%[3]s
-%[4]s`
+	// 1. includes
+	// 2. file contents
+	// TODO: \mainpage doc?
+	// primarySourceFmt is the template for the primary source file
+	primarySourceFmt = `%[1]s
+%[2]s`
 
-	// 1: partition module to export
-	//exportImportFmt = "export import :%[1]s;\n"
+	// 1. includes
+	// 2. file contents
+	// TODO: \mainpage doc?
+	// primaryHeaderFmt is the template for the primary header file
+	binderHeaderFmt = `#pragma once
 
-	// 1: ClassName
-	// 2: file contents
-	// 3: includes
-	// 4: Model or Binder
-	// partitionModuleFmt is the template for a module partition
-	//	partitionModuleFmt = `module;
-	//
-	//%[3]s
-	//export module %[4]s:%[1]s;
-	//
-	//%[2]s`
+%[1]s
+namespace nanodbc
+{
+	class result;
+}
 
-	// 1. ClassName
-	// 2. Class contents
-	// 3. binder namespace
-	// 4. model namespace
-	//	modelFileFmt = `namespace %[3]s
-	//{
-	//	export class %[1]s;
-	//}
-	//
-	//namespace %[4]s
-	//{
-	//%[2]s
-	//}
-	//`
+%[2]s`
+
+	// 1. binder filename
+	// 2. file contents
+	// TODO: \mainpage doc?
+	// binderSourceFmt is the template for the binder source file
+	binderSourceFmt = `#include "%[1]s.h"
+#include <nanodbc/nanodbc.h>
+
+%[2]s`
 
 	// 1. Class Name
-	modelFwdDeclareFmt = "\n\texport class %[1]s;"
+	modelFwdDeclareFmt = "\n\tclass %[1]s;"
 
 	// 1. ClassName
 	// 2. Member defs
 	// 3. Method defs
 	// 4. Class-level Doxygen block
 	// 5. binder namespace
-	modelClassFmt = `
+	modelClassHeaderFmt = `
 %[4]s
-	export class %[1]s 
+	class %[1]s 
 	{
 	/// \publicsection
 	public:
@@ -65,6 +60,9 @@ export module %[1]s;
 
 	};
 `
+
+	// 1. Method implementations
+	modelClassSourceFmt = `%[1]s`
 
 	// 1. doxygen block
 	// 2. union array def
@@ -107,9 +105,9 @@ export module %[1]s;
 	// 1. ClassName
 	// 2. Method defs
 	// 3. model namespace
-	binderClassFmt = `
+	binderClassHeaderFmt = `
 	/// \brief generated nanodbc column binder for %[3]s::%[1]s
-	export class %[1]s
+	class %[1]s
 	{
 	/// \publicsection
 	public:
@@ -121,9 +119,12 @@ export module %[1]s;
 	};
 `
 
+	// 1. method implementations
+	binderClassSourceFmt = `%[1]s
+`
+
 	// 1: header file to include
 	includeFmt = "#include %[1]s\n"
-	importFmt  = "import %[1]s;\n"
 
 	// 1: cppType
 	// 2: PropertyName
@@ -148,86 +149,95 @@ enum class %[1]s
 	// 3. return type
 	// 4. function name
 	// 5. params, csv
-	// 6. function body
-	// 7. pure
-	methodFmt = `
+	methodDeclFmt = `
 		/// \brief %[1]s
-		%[2]s%[3]s%[4]s(%[5]s)%[7]s
-		{%[6]s
-		}`
+		%[2]s%[3]s%[4]s(%[5]s)%[6]s;`
+
+	// 1. description
+	// 2. return type
+	// 3. class name
+	// 4. function name
+	// 5. params, csv
+	// 6. pure
+	// 7. function body
+	methodImplFmt = `
+	/// \brief %[1]s
+	%[2]s%[3]s::%[4]s(%[5]s)%[6]s
+	{%[7]s
+	}`
 
 	// 1: table name
 	funcTableNameFmt = `
-			static const std::string tableName = "%[1]s";
-			return tableName;`
+		static const std::string tableName = "%[1]s";
+		return tableName;`
 
 	// 1: list of column names, string wrapped and CSV
 	// 2: Static const name
 	// 3: return type
 	funcColumnNamesFmt = `
-			static %[3]s %[2]s =
-			{
-				%[1]s
-			};
-			return %[2]s;`
+		static %[3]s %[2]s =
+		{
+			%[1]s
+		};
+		return %[2]s;`
 
 	funcDbTypeFmt = `
-			return modelUtil::DbType::%[1]s;`
+		return modelUtil::DbType::%[1]s;`
 
 	// 1: list of column names in the pk, string wrapped and CSV
 	funcPrimaryKeyFmt = `
-			static const std::vector<std::string> primaryKey =
-			{
-				%[1]s
-			};
-			return primaryKey;`
+		static const std::vector<std::string> primaryKey =
+		{
+			%[1]s
+		};
+		return primaryKey;`
 
 	// 1 Binding map entries
 	funcColumnBindingsFmt = `
-			static const BindingsMapType bindingsMap =
-			{%[1]s
-			};
-			return bindingsMap;`
+		static const BindingsMapType bindingsMap =
+		{%[1]s
+		};
+		return bindingsMap;`
 
 	// 1. PK Property Name
 	funcMapKeySingleFmt = `
-			return %[1]s;`
+		return %[1]s;`
 
 	// 1. tuple def
 	// 2. tuple values, csv
 	funcMapKeyMultiFmt = `
-			return %[1]s{%[2]s};`
+		return %[1]s{%[2]s};`
 
 	// 1. Column Name
 	// 2. Class Name
 	// 3. Property Name
 	bindingFmt = `
-				{"%[1]s", &%[2]s::Bind%[3]s}`
+			{"%[1]s", &%[2]s::Bind%[3]s}`
 
 	// 1. cppType
 	// 2. PropertyName
 	funcPropBindingFmt = `
-			result.get_ref<%[1]s>(colIndex, m.%[2]s);`
+		result.get_ref<%[1]s>(colIndex, m.%[2]s);`
 
 	// 1. cppType
 	// 2. PropertyName
 	// 3. cast function
 	funcPropBindingCastFmt = `
-			%[1]s tmpValue = {};
-			result.get_ref<%[1]s>(colIndex, tmpValue);
-			m.%[2]s = %[3]s(tmpValue);`
+		%[1]s tmpValue = {};
+		result.get_ref<%[1]s>(colIndex, tmpValue);
+		m.%[2]s = %[3]s(tmpValue);`
 
 	// 1. cppType to cast to
 	// 2. PropertyName
 	// 3. cast function
 	funcOptionalPropBindingCastFmt = `
-			std::optional<%[1]s> tmpValue;
-			result.get_ref<std::optional<%[1]s>>(colIndex, tmpValue);
+		std::optional<%[1]s> tmpValue;
+		result.get_ref<std::optional<%[1]s>>(colIndex, tmpValue);
 
-			if (tmpValue.has_value())
-				m.%[2]s = %[3]s(*tmpValue);
-			else
-				m.%[2]s.reset();`
+		if (tmpValue.has_value())
+			m.%[2]s = %[3]s(*tmpValue);
+		else
+			m.%[2]s.reset();`
 
 	// 1. Type
 	constRefFmt = "const %s&"
@@ -235,29 +245,38 @@ enum class %[1]s
 	constPtrFmt = "const %s*"
 	constFmt    = "const %s"
 
-	// 1. Class Name
-	// 2. Methods
+	// 1. Class name
+	// 2. Method declarations
 	// 3. Class description
 	// 4. additional doyxgen
-	procClassFmt = `
+	procClassHeaderFmt = `
 	/// \brief %[3]s
 	/// \class %[1]s
 %[4]s
-	export class %[1]s : public StoredProcedure
+	class %[1]s : public detail::StoredProcedure
 	{
 	public:
-		%[1]s() 
-			: StoredProcedure()
-		{
-		}
-
-		%[1]s(std::shared_ptr<nanodbc::connection> conn) 
-			: StoredProcedure(conn)
-		{
-		}
+		%[1]s();
+		%[1]s(std::shared_ptr<nanodbc::connection> conn);
 %[2]s
 	};
 `
+
+	// 1. Class name
+	// 2. Methods
+	procClassImplFmt = `
+	%[1]s::%[1]s()
+		: StoredProcedure()
+	{
+	}
+
+	%[1]s::%[1]s(std::shared_ptr<nanodbc::connection> conn) 
+		: StoredProcedure(conn)
+	{
+	}
+%[2]s
+`
+
 	// 1. proc name
 	// 2. "?" list, csv for len of param
 	procCallFmt        = "{CALL %[1]s(%[2]s)}"
@@ -265,34 +284,34 @@ enum class %[1]s
 
 	// 1. binding list
 	procExecuteFmt = `
-			prepare(Query());
-			_stmt.reset_parameters();
+		prepare(Query());
+		_stmt.reset_parameters();
 %[1]s
 	
-			return StoredProcedure::execute();`
+		return StoredProcedure::execute();`
 
 	procExecuteNoParam = `
-			prepare(Query());
-			return StoredProcedure::execute();`
+		prepare(Query());
+		return StoredProcedure::execute();`
 
 	// 1. bind function (bind/bind_binary)
 	// 2. paramIndex
 	// 3. param
 	procBindInputFmt = `
-			_stmt.%[1]s(%[2]d, %[3]s);`
+		_stmt.%[1]s(%[2]d, %[3]s);`
 
 	// 1. bind function (bind/bind_binary)
 	// 2. paramIndex
 	// 3. param
 	// 4. param type
 	procBindFmt = `
-			_stmt.%[1]s(%[2]d, %[3]s, %[4]s);`
+		_stmt.%[1]s(%[2]d, %[3]s, %[4]s);`
 
 	procDestructorWithFlushDef = `
-			flush_on_destruct();`
+		flush_on_destruct();`
 
 	// 1: query
 	procFuncQueryFmt = `
-			static const std::string query = "%[1]s";
-			return query;`
+		static const std::string query = "%[1]s";
+		return query;`
 )

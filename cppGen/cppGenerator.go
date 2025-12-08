@@ -19,7 +19,6 @@ const (
 	modelPackageOutDir    = "model"
 	binderPackageOutDir   = "binder"
 	procPackageOutDir     = "StoredProc"
-	procCgHelperDir       = "cppGen/cgHelpers/Procedures"
 	nanodbcParamTypeOut   = "nanodbc::statement::PARAM_OUT"
 	nanodbcParamTypeRet   = "nanodbc::statement::PARAM_RETURN"
 	nanodbcBindFunc       = "bind"
@@ -71,13 +70,13 @@ func Generate(clean bool) (err error) {
 	}
 
 	for i := range moduleDefs {
-		err = generateModule(clean, validSchemas, moduleDefs[i])
+		err = generateTableClasses(clean, validSchemas, moduleDefs[i])
 		if err != nil {
 			return err
 		}
 	}
 
-	err = generateProcModule(clean, validProcs)
+	err = generateProcClasses(clean, validProcs)
 	if err != nil {
 		return err
 	}
@@ -85,7 +84,7 @@ func Generate(clean bool) (err error) {
 	return nil
 }
 
-func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef ModuleDef) (err error) {
+func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, moduleDef ModuleDef) (err error) {
 	modelOut := filepath.Join(utils.OutputDir, moduleDef.OutDir, modelPackageOutDir)
 	binderOut := filepath.Join(utils.OutputDir, moduleDef.OutDir, binderPackageOutDir)
 	if clean {
@@ -113,33 +112,34 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		return err
 	}
 
-	modelModuleName := fmt.Sprintf(moduleSuffixModelFmt, moduleDef.OutDir)
-	binderModuleName := fmt.Sprintf(moduleSuffixBinderFmt, moduleDef.OutDir)
+	modelClassName := fmt.Sprintf(classSuffixModelFmt, moduleDef.OutDir)
+	binderClassName := fmt.Sprintf(classSuffixBinderFmt, moduleDef.OutDir)
 
-	modelTemplate := CppTemplate{}
-	modelTemplate.AddInclude("<unordered_set>")
-	modelTemplate.AddInclude("<string>")
-	modelTemplate.AddInclude("<string>")
-	modelTemplate.AddInclude("ModelUtil")
-	binderTemplate := CppTemplate{}
-	binderTemplate.AddInclude("<string>")
-	binderTemplate.AddInclude("<unordered_map>")
-	binderTemplate.AddInclude("<nanodbc/nanodbc.h>")
-	binderTemplate.AddInclude(modelModuleName)
-	binderTemplate.AddInclude("BinderUtil")
+	modelHeaderTemplate := CppTemplate{}
+	modelHeaderTemplate.AddInclude("<unordered_set>")
+	modelHeaderTemplate.AddInclude("<string>")
+	modelHeaderTemplate.AddInclude("<vector>")
+
+	binderHeaderTemplate := CppTemplate{}
+	binderHeaderTemplate.AddInclude("<string>")
+	binderHeaderTemplate.AddInclude("<unordered_map>")
 
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
 
 	// memory is tasty
-	modelFileContents := strings.Builder{}
-	modelFwdDeclares := strings.Builder{}
-	binderFileContents := strings.Builder{}
+	modelHeaderFileContents := strings.Builder{}
+	modelSourceFileContents := strings.Builder{}
+	modelHeaderFwdDeclares := strings.Builder{}
+	binderHeaderFileContents := strings.Builder{}
+	binderSourceFileContents := strings.Builder{}
 	modelNs := fmt.Sprintf(profile.ModelNsFmt, moduleDef.namespace)
 	binderNs := fmt.Sprintf(profile.BinderNsFmt, moduleDef.namespace)
-	modelFileContents.WriteString(fmt.Sprintf(namespaceOpen, modelNs))
-	binderFileContents.WriteString(fmt.Sprintf(namespaceOpen, binderNs))
-	modelFwdDeclares.WriteString(fmt.Sprintf(namespaceOpen, binderNs))
+	modelHeaderFileContents.WriteString(fmt.Sprintf(namespaceOpen, modelNs))
+	modelSourceFileContents.WriteString(fmt.Sprintf(namespaceOpen, modelNs))
+	binderHeaderFileContents.WriteString(fmt.Sprintf(namespaceOpen, binderNs))
+	binderSourceFileContents.WriteString(fmt.Sprintf(namespaceOpen, binderNs))
+	modelHeaderFwdDeclares.WriteString(fmt.Sprintf(namespaceOpen, binderNs))
 	for i := range validSchemas {
 		isIncluded := moduleDef.namespace == profile.All
 		exportDef := jsonSchema.Export{}
@@ -156,7 +156,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		fmt.Println(fmt.Sprintf("generating c++ for: %s", validSchemas[i].Name))
 
 		// model forward declare of binder
-		modelFwdDeclares.WriteString(fmt.Sprintf(modelFwdDeclareFmt, validSchemas[i].ClassName))
+		modelHeaderFwdDeclares.WriteString(fmt.Sprintf(modelFwdDeclareFmt, validSchemas[i].ClassName))
 
 		pk := jsonSchema.IndexDef{}
 		for x := range validSchemas[i].Indexes {
@@ -185,19 +185,18 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		template := CppTemplate{}
 		template.def = filterDef
 		template.namespace = fmt.Sprintf(profile.ModelNsFmt, moduleDef.namespace)
-		template.moduleSuffix = modelModuleName
 		template.moduleDef = moduleDef
 
 		bindingTemplate := CppTemplate{}
 		bindingTemplate.def = filterDef
 		bindingTemplate.namespace = fmt.Sprintf(profile.BinderNsFmt, moduleDef.namespace)
-		bindingTemplate.moduleSuffix = binderModuleName
 		bindingTemplate.moduleDef = moduleDef
 
 		// function defs
 		// Generate a TableName() func
 		tblNameDef := igenerator.MethodDef{
 			IsStatic:    true,
+			ClassName:   filterDef.ClassName,
 			ReturnType:  "const std::string&",
 			Name:        "TableName",
 			Body:        fmt.Sprintf(funcTableNameFmt, filterDef.Name),
@@ -214,6 +213,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		colNameDef := igenerator.MethodDef{
 			IsStatic:    true,
 			ReturnType:  retType + "&",
+			ClassName:   filterDef.ClassName,
 			Name:        "ColumnNames",
 			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(colNames, ", "), "columnNames", retType),
 			Description: "Returns a set of column names for the table",
@@ -224,6 +224,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		orderedColNameDef := igenerator.MethodDef{
 			IsStatic:    true,
 			ReturnType:  retType + "&",
+			ClassName:   filterDef.ClassName,
 			Name:        "OrderedColumnNames",
 			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(colNames, ", "), "orderedColumnNames", retType),
 			Description: "Returns an ordered vector of column names for the table",
@@ -241,6 +242,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		blobColNameDef := igenerator.MethodDef{
 			IsStatic:    true,
 			ReturnType:  retType + "&",
+			ClassName:   filterDef.ClassName,
 			Name:        "BlobColumns",
 			Body:        fmt.Sprintf(funcColumnNamesFmt, strings.Join(blobCols, ", "), "blobColumns", retType),
 			Description: "Returns a set of blob column names for the table",
@@ -251,6 +253,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		dbTypeDef := igenerator.MethodDef{
 			IsStatic:    true,
 			ReturnType:  "const modelUtil::DbType",
+			ClassName:   filterDef.ClassName,
 			Name:        "DbType",
 			Body:        fmt.Sprintf(funcDbTypeFmt, filterDef.Database),
 			Description: "Returns the associated database type for the table",
@@ -276,6 +279,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		pkColumnsDef := igenerator.MethodDef{
 			IsStatic:    true,
 			ReturnType:  "const std::vector<std::string>&",
+			ClassName:   filterDef.ClassName,
 			Name:        "PrimaryKey",
 			Body:        fmt.Sprintf(funcPrimaryKeyFmt, pkNames.String()),
 			Description: "Returns the columns associated with the table's Primary Key",
@@ -318,6 +322,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 			mapKeyDef := igenerator.MethodDef{
 				IsPure:      true,
 				ReturnType:  retType,
+				ClassName:   filterDef.ClassName,
 				Name:        "MapKey",
 				Body:        body,
 				Description: "Returns a value for use in map keys based on the table's primary key",
@@ -326,16 +331,17 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		}
 
 		// generate template
-		modelClassDef, tErr := template.Generate()
+		modelClassHeaderDef, modelClassSourceDef, tErr := template.Generate()
 		if tErr != nil {
 			err = fmt.Errorf("%s failed to generate c++ source: %w", filterDef.Name, tErr)
 			return err
 		}
-		modelFileContents.WriteString(modelClassDef)
+		modelHeaderFileContents.WriteString(modelClassHeaderDef)
+		modelSourceFileContents.WriteString(modelClassSourceDef)
 
 		// copy includes to main template
 		for k, v := range template.includes {
-			modelTemplate.includes[k] = v
+			modelHeaderTemplate.includes[k] = v
 		}
 
 		// binder functions
@@ -350,6 +356,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		colBindDef := igenerator.MethodDef{
 			IsStatic:    true,
 			ReturnType:  "const BindingsMapType&",
+			ClassName:   filterDef.ClassName,
 			Name:        "GetColumnBindings",
 			Body:        fmt.Sprintf(funcColumnBindingsFmt, bindings.String()),
 			Description: "Returns the binding function associated with the column name",
@@ -357,66 +364,73 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 		bindingTemplate.AddMethod(colBindDef)
 
 		// generate binding template
-		binderClassDef, tErr := bindingTemplate.GenerateBinderClass()
+		binderClassHeaderDef, binderClassSourceDef, tErr := bindingTemplate.GenerateBinderClass()
 		if tErr != nil {
 			err = fmt.Errorf("%s failed to generate c++ bindings source: %w", filterDef.Name, tErr)
 			return err
 		}
-		binderFileContents.WriteString(binderClassDef)
+		binderHeaderFileContents.WriteString(binderClassHeaderDef)
+		binderSourceFileContents.WriteString(binderClassSourceDef)
 	}
 
-	var includes []string
-	var imports []string
-	for include, isInclude := range modelTemplate.includes {
-		if isInclude {
-			includes = append(includes, include)
-		} else {
-			imports = append(imports, include)
-		}
+	var headerIncludes []string
+	for include := range modelHeaderTemplate.includes {
+		headerIncludes = append(headerIncludes, include)
 	}
-	// includes is built from an unordered hash map
+
+	// includes are built from unordered hash maps
 	// sort the includes alphabetically so they don't cause diffs gen-to-gen
-	sort.Strings(includes)
-	sort.Strings(imports)
+	sort.Strings(headerIncludes)
 
 	// close the namespace
-	modelFwdDeclares.WriteString("\n}\n\n")
-	modelFileContents.WriteString("}")
+	modelHeaderFwdDeclares.WriteString("\n}\n\n")
+	modelHeaderFileContents.WriteString("}")
+	modelSourceFileContents.WriteString("}")
 
 	// combine model content
-	modelFwdDeclares.WriteString(modelFileContents.String())
+	modelHeaderFwdDeclares.WriteString(modelHeaderFileContents.String())
 
-	// 1: Module name
-	// 2. includes
-	// 3. imports
-	// 4: file contents
-	modelModuleStr := fmt.Sprintf(primaryModuleFmt, modelModuleName, strings.Join(includes, ""), strings.Join(imports, ""), modelFwdDeclares.String())
-	outFile := filepath.Join(modelOut, fmt.Sprintf(primaryModuleFileName, modelModuleName))
-	if fErr := utils.WriteToFile(outFile, modelModuleStr); fErr != nil {
+	// 1. includes
+	// 2. file contents
+	modelHeaderStr := fmt.Sprintf(primaryHeaderFmt, strings.Join(headerIncludes, ""), modelHeaderFwdDeclares.String())
+	outFile := filepath.Join(modelOut, fmt.Sprintf(primaryHeaderFileName, modelClassName))
+	if fErr := utils.WriteToFile(outFile, modelHeaderStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 		return err
 	}
 
-	includes = []string{}
-	imports = []string{}
-	for include, isInclude := range binderTemplate.includes {
-		if isInclude {
-			includes = append(includes, include)
-		} else {
-			imports = append(imports, include)
-		}
+	// 1. includes
+	// 2. file contents
+	modelSourceStr := fmt.Sprintf(primarySourceFmt, "", modelSourceFileContents.String())
+	outFile = filepath.Join(modelOut, fmt.Sprintf(primarySourceFileName, modelClassName))
+	if fErr := utils.WriteToFile(outFile, modelSourceStr); fErr != nil {
+		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
+		return err
 	}
-	// includes is built from an unordered hash map
+
+	headerIncludes = []string{}
+	for include := range binderHeaderTemplate.includes {
+		headerIncludes = append(headerIncludes, include)
+	}
+
+	// includes are built from unordered hash maps
 	// sort the includes alphabetically so they don't cause diffs gen-to-gen
-	sort.Strings(includes)
-	sort.Strings(imports)
+	sort.Strings(headerIncludes)
 
 	// close the namespace
-	binderFileContents.WriteString("}")
+	binderHeaderFileContents.WriteString("}")
+	binderSourceFileContents.WriteString("}")
 
-	bindingModuleStr := fmt.Sprintf(primaryModuleFmt, binderModuleName, strings.Join(includes, ""), strings.Join(imports, ""), binderFileContents.String())
-	outFile = filepath.Join(binderOut, fmt.Sprintf(primaryModuleFileName, binderModuleName))
-	if fErr := utils.WriteToFile(outFile, bindingModuleStr); fErr != nil {
+	bindingHeaderStr := fmt.Sprintf(binderHeaderFmt, strings.Join(headerIncludes, ""), binderHeaderFileContents.String())
+	outFile = filepath.Join(binderOut, fmt.Sprintf(primaryHeaderFileName, binderClassName))
+	if fErr := utils.WriteToFile(outFile, bindingHeaderStr); fErr != nil {
+		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
+		return err
+	}
+
+	bindingSourceStr := fmt.Sprintf(binderSourceFmt, binderClassName, binderSourceFileContents.String())
+	outFile = filepath.Join(binderOut, fmt.Sprintf(primarySourceFileName, binderClassName))
+	if fErr := utils.WriteToFile(outFile, bindingSourceStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 		return err
 	}
@@ -424,7 +438,7 @@ func generateModule(clean bool, validSchemas []jsonSchema.TableDef, moduleDef Mo
 	return nil
 }
 
-func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error) {
+func generateProcClasses(clean bool, validProcs []jsonSchema.ProcDef) (err error) {
 	procOut := filepath.Join(utils.OutputDir, procPackageOutDir)
 	if clean {
 		// clean needs to be specific to the directories it writes to
@@ -441,32 +455,27 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		return err
 	}
 
-	template := CppTemplate{}
-	template.AddInclude("<nanodbc/nanodbc.h>")
-	template.AddInclude("<memory>")
-	template.AddInclude("<string>")
-	template.AddInclude("ModelUtil")
+	headerTemplate := CppTemplate{}
+	headerTemplate.AddInclude("<nanodbc/nanodbc.h>")
+	headerTemplate.AddInclude("<memory>")
+	headerTemplate.AddInclude("<string>")
+	headerTemplate.AddInclude("\"detail/StoredProcedure.h\"")
 
-	procFileContents := strings.Builder{}
-	procFileContents.WriteString(fmt.Sprintf(namespaceOpen, "storedProc"))
-	procFileContents.WriteString("\n")
-	// Read any manually coded files:
-	manFiles, err := filepath.Glob(filepath.Join(procCgHelperDir, "*.ixx"))
-	if err != nil {
-		return err
-	}
-	for i := range manFiles {
-		// read the file from cgHelpers
-		bytes, err := os.ReadFile(manFiles[i])
-		if err != nil {
-			err = fmt.Errorf("failed to read cgHelper file: %w", err)
-			return err
-		}
-		procFileContents.Write(bytes)
-	}
+	sourceTemplate := CppTemplate{}
+	sourceTemplate.AddInclude("\"StoredProc.h\"")
+
+	procHeaderFileContents := strings.Builder{}
+	procHeaderFileContents.WriteString(fmt.Sprintf(namespaceOpen, "storedProc"))
+	procHeaderFileContents.WriteString("\n")
+
+	procSourceFileContents := strings.Builder{}
+	procSourceFileContents.WriteString(fmt.Sprintf(namespaceOpen, "storedProc"))
+	procSourceFileContents.WriteString("\n")
 
 	for i := range validProcs {
 		fmt.Println(fmt.Sprintf("generating c++ for: %s", validProcs[i].Name))
+
+		className := validProcs[i].ClassName
 
 		classTemplate := CppTemplate{}
 		paramBindings := strings.Builder{}
@@ -503,9 +512,9 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			}
 
 			if strings.Contains(cppType, "int") {
-				template.AddInclude("<cstdint>")
+				headerTemplate.AddInclude("<cstdint>")
 			} else if strings.Contains(cppType, "time_t") {
-				template.AddInclude("<ctime>")
+				headerTemplate.AddInclude("<ctime>")
 			}
 
 			bindFunc := nanodbcBindFunc
@@ -513,7 +522,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 				cppType = "char*"
 			} else if strings.Contains(cppType, "vector") {
 				bindFunc = nanodbcBindBinaryFunc
-				template.AddInclude("<vector>")
+				headerTemplate.AddInclude("<vector>")
 			}
 
 			_type := cppType
@@ -557,6 +566,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		funcQueryDef := igenerator.MethodDef{
 			IsStatic:    true,
 			ReturnType:  "const std::string&",
+			ClassName:   className,
 			Name:        "Query",
 			Body:        fmt.Sprintf(procFuncQueryFmt, procCallStr),
 			Description: "Returns the query associated with preparing this statement",
@@ -567,6 +577,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		dbTypeDef := igenerator.MethodDef{
 			IsStatic:    true,
 			ReturnType:  "const modelUtil::DbType",
+			ClassName:   className,
 			Name:        "DbType",
 			Body:        fmt.Sprintf(funcDbTypeFmt, validProcs[i].Database),
 			Description: "Returns the associated database type for the table",
@@ -582,6 +593,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		executeDef := igenerator.MethodDef{
 			IsThrow:    true,
 			ReturnType: "std::weak_ptr<nanodbc::result>",
+			ClassName:  className,
 			Name:       "execute",
 			Params:     funcParamList,
 			Body:       executeBody,
@@ -593,6 +605,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		if hasOutputOrReturn {
 			destructorDef := igenerator.MethodDef{
 				ReturnType:  "",
+				ClassName:   className,
 				Name:        fmt.Sprintf("~%s", validProcs[i].ClassName),
 				Body:        procDestructorWithFlushDef,
 				Description: "Flushes any output variables or return values on destruction",
@@ -600,6 +613,7 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 			classTemplate.AddMethod(destructorDef)
 		}
 
+		decls := strings.Join(classTemplate.decls, "\n")
 		methods := strings.Join(classTemplate.methods, "\n")
 
 		addlDoxygen := fmt.Sprintf(getProcXRefFmt(validProcs[i].Database), validProcs[i].Name, validProcs[i].Description)
@@ -608,35 +622,51 @@ func generateProcModule(clean bool, validProcs []jsonSchema.ProcDef) (err error)
 		// 1. Class Name
 		// 2. Methods
 		// 3. Proc description
-		partFileStr := fmt.Sprintf(procClassFmt, validProcs[i].ClassName,
-			methods, validProcs[i].Description, addlDoxygen)
-		procFileContents.WriteString(partFileStr)
+		headerFileStr := fmt.Sprintf(procClassHeaderFmt, validProcs[i].ClassName,
+			decls, validProcs[i].Description, addlDoxygen)
+		procHeaderFileContents.WriteString(headerFileStr)
+
+		// file contents:
+		// 1. Class Name
+		// 2. Methods
+		// 3. Proc description
+		sourceFileStr := fmt.Sprintf(procClassImplFmt, validProcs[i].ClassName,
+			methods, validProcs[i].Description)
+		procSourceFileContents.WriteString(sourceFileStr)
 	}
 
-	var includes []string
-	var imports []string
-	for include, isInclude := range template.includes {
-		if isInclude {
-			includes = append(includes, include)
-		} else {
-			imports = append(imports, include)
-		}
+	var headerIncludes []string
+	var sourceIncludes []string
+
+	for include := range headerTemplate.includes {
+		headerIncludes = append(headerIncludes, include)
 	}
-	// includes is built from an unordered hash map
+
+	for include := range sourceTemplate.includes {
+		sourceIncludes = append(sourceIncludes, include)
+	}
+
+	// includes are built from unordered hash maps
 	// sort the includes alphabetically so they don't cause diffs gen-to-gen
-	sort.Strings(includes)
-	sort.Strings(imports)
+	sort.Strings(headerIncludes)
+	sort.Strings(sourceIncludes)
 
 	// close the namespace
-	procFileContents.WriteString("}")
+	procHeaderFileContents.WriteString("}")
+	procSourceFileContents.WriteString("}")
 
-	// 1: Module name
-	// 2. includes
-	// 3. imports
-	// 4: file contents
-	procModuleStr := fmt.Sprintf(primaryModuleFmt, procPackageOutDir, strings.Join(includes, ""), strings.Join(imports, ""), procFileContents.String())
-	outFile := filepath.Join(procOut, fmt.Sprintf(primaryModuleFileName, procPackageOutDir))
-	if fErr := utils.WriteToFile(outFile, procModuleStr); fErr != nil {
+	// 1. includes
+	// 2. file contents
+	procHeaderFileStr := fmt.Sprintf(primaryHeaderFmt, strings.Join(headerIncludes, ""), procHeaderFileContents.String())
+	outFile := filepath.Join(procOut, fmt.Sprintf(primaryHeaderFileName, procPackageOutDir))
+	if fErr := utils.WriteToFile(outFile, procHeaderFileStr); fErr != nil {
+		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
+		return err
+	}
+
+	procSourceFileStr := fmt.Sprintf(primarySourceFmt, strings.Join(sourceIncludes, ""), procSourceFileContents.String())
+	outFile = filepath.Join(procOut, fmt.Sprintf(primarySourceFileName, procPackageOutDir))
+	if fErr := utils.WriteToFile(outFile, procSourceFileStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 		return err
 	}
