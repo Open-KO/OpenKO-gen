@@ -40,6 +40,7 @@ namespace nanodbc
 	// binderSourceFmt is the template for the binder source file
 	binderSourceFmt = `#include "%[1]s"
 #include <%[2]s>
+#include <BinderUtil/BinderUtil.h>
 #include <nanodbc/nanodbc.h>
 
 %[3]s`
