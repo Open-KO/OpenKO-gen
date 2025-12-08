@@ -391,23 +391,27 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 	modelHeaderFwdDeclares.WriteString("\n}\n\n")
 	binderHeaderFwdDeclares.WriteString("\n}\n")
 	modelHeaderFileContents.WriteString("}")
-	modelSourceFileContents.WriteString("}")
+	modelSourceFileContents.WriteString("\n}")
 
 	// combine model content
 	modelHeaderFwdDeclares.WriteString(modelHeaderFileContents.String())
 
+	modelHeaderFilename := fmt.Sprintf(primaryHeaderFileName, modelClassName)
+
 	// 1. includes
 	// 2. file contents
 	modelHeaderStr := fmt.Sprintf(primaryHeaderFmt, strings.Join(headerIncludes, ""), modelHeaderFwdDeclares.String())
-	outFile := filepath.Join(modelOut, fmt.Sprintf(primaryHeaderFileName, modelClassName))
+	outFile := filepath.Join(modelOut, modelHeaderFilename)
 	if fErr := utils.WriteToFile(outFile, modelHeaderStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
 		return err
 	}
 
+	modelSourceFileIncludes := fmt.Sprintf(includeFmt, fmt.Sprintf("\"%s\"", modelHeaderFilename))
+
 	// 1. includes
 	// 2. file contents
-	modelSourceStr := fmt.Sprintf(primarySourceFmt, "", modelSourceFileContents.String())
+	modelSourceStr := fmt.Sprintf(primarySourceFmt, modelSourceFileIncludes, modelSourceFileContents.String())
 	outFile = filepath.Join(modelOut, fmt.Sprintf(primarySourceFileName, modelClassName))
 	if fErr := utils.WriteToFile(outFile, modelSourceStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
