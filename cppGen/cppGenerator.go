@@ -259,7 +259,7 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 		// Generate a DbType func
 		dbTypeDef := igenerator.MethodDef{
 			IsStatic:    true,
-			ReturnType:  "const modelUtil::DbType",
+			ReturnType:  "modelUtil::DbType",
 			ClassName:   filterDef.ClassName,
 			Name:        "DbType",
 			Body:        fmt.Sprintf(funcDbTypeFmt, filterDef.Database),
@@ -593,7 +593,7 @@ func generateProcClasses(clean bool, validProcs []jsonSchema.ProcDef) (err error
 		// Generate a DbType func
 		dbTypeDef := igenerator.MethodDef{
 			IsStatic:    true,
-			ReturnType:  "const modelUtil::DbType",
+			ReturnType:  "modelUtil::DbType",
 			ClassName:   className,
 			Name:        "DbType",
 			Body:        fmt.Sprintf(funcDbTypeFmt, validProcs[i].Database),
