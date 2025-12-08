@@ -361,12 +361,13 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 			bindings.WriteString(fmt.Sprintf(bindingFmt, filterDef.Columns[j].Name, filterDef.ClassName, filterDef.Columns[j].PropertyName))
 		}
 		colBindDef := igenerator.MethodDef{
-			IsStatic:    true,
-			ReturnType:  "const BindingsMapType&",
-			ClassName:   filterDef.ClassName,
-			Name:        "GetColumnBindings",
-			Body:        fmt.Sprintf(funcColumnBindingsFmt, bindings.String()),
-			Description: "Returns the binding function associated with the column name",
+			IsStatic:       true,
+			ReturnType:     "const BindingsMapType&",
+			ImplReturnType: fmt.Sprintf("const %s::BindingsMapType&", filterDef.ClassName),
+			ClassName:      filterDef.ClassName,
+			Name:           "GetColumnBindings",
+			Body:           fmt.Sprintf(funcColumnBindingsFmt, bindings.String()),
+			Description:    "Returns the binding function associated with the column name",
 		}
 		bindingTemplate.AddMethod(colBindDef)
 
