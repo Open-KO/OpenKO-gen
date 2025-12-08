@@ -39,7 +39,7 @@ namespace nanodbc
 	// TODO: \mainpage doc?
 	// binderSourceFmt is the template for the binder source file
 	binderSourceFmt = `#include "%[1]s"
-#include "%[2]s"
+#include <%[2]s>
 #include <nanodbc/nanodbc.h>
 
 %[3]s`

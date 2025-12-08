@@ -119,10 +119,12 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 	modelHeaderTemplate.AddInclude("<unordered_set>")
 	modelHeaderTemplate.AddInclude("<string>")
 	modelHeaderTemplate.AddInclude("<vector>")
+	modelHeaderTemplate.AddInclude("<ModelUtil/ModelUtil.h>")
 
 	binderHeaderTemplate := CppTemplate{}
 	binderHeaderTemplate.AddInclude("<string>")
 	binderHeaderTemplate.AddInclude("<unordered_map>")
+	binderHeaderTemplate.AddInclude("<ModelUtil/ModelUtil.h>")
 
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
@@ -438,7 +440,7 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 		return err
 	}
 
-	relativeModelHeaderPath := filepath.Join("../", modelPackageOutDir, fmt.Sprintf(primaryHeaderFileName, modelClassName))
+	relativeModelHeaderPath := filepath.Join(moduleDef.OutDir, modelPackageOutDir, fmt.Sprintf(primaryHeaderFileName, modelClassName))
 	relativeModelHeaderPath = filepath.ToSlash(relativeModelHeaderPath)
 
 	bindingSourceStr := fmt.Sprintf(binderSourceFmt, fmt.Sprintf(primaryHeaderFileName, binderClassName), relativeModelHeaderPath, binderSourceFileContents.String())
