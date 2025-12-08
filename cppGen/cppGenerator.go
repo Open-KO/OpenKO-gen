@@ -401,9 +401,10 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 
 	modelHeaderFilename := fmt.Sprintf(primaryHeaderFileName, modelClassName)
 
-	// 1. includes
-	// 2. file contents
-	modelHeaderStr := fmt.Sprintf(primaryHeaderFmt, strings.Join(headerIncludes, ""), modelHeaderFwdDeclares.String())
+	// 1. class name (for include guard)
+	// 2. includes
+	// 3. file contents
+	modelHeaderStr := fmt.Sprintf(primaryHeaderFmt, strings.ToUpper(modelClassName), strings.Join(headerIncludes, ""), modelHeaderFwdDeclares.String())
 	outFile := filepath.Join(modelOut, modelHeaderFilename)
 	if fErr := utils.WriteToFile(outFile, modelHeaderStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
@@ -434,7 +435,7 @@ func generateTableClasses(clean bool, validSchemas []jsonSchema.TableDef, module
 	binderHeaderFileContents.WriteString("}")
 	binderSourceFileContents.WriteString("}")
 
-	bindingHeaderStr := fmt.Sprintf(binderHeaderFmt, strings.Join(headerIncludes, ""), binderHeaderFwdDeclares.String(), binderHeaderFileContents.String())
+	bindingHeaderStr := fmt.Sprintf(binderHeaderFmt, strings.ToUpper(binderClassName), strings.Join(headerIncludes, ""), binderHeaderFwdDeclares.String(), binderHeaderFileContents.String())
 	outFile = filepath.Join(binderOut, fmt.Sprintf(primaryHeaderFileName, binderClassName))
 	if fErr := utils.WriteToFile(outFile, bindingHeaderStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)
@@ -672,9 +673,10 @@ func generateProcClasses(clean bool, validProcs []jsonSchema.ProcDef) (err error
 	procHeaderFileContents.WriteString("}")
 	procSourceFileContents.WriteString("}")
 
-	// 1. includes
-	// 2. file contents
-	procHeaderFileStr := fmt.Sprintf(primaryHeaderFmt, strings.Join(headerIncludes, ""), procHeaderFileContents.String())
+	// 1. header guard name
+	// 2. includes
+	// 3. file contents
+	procHeaderFileStr := fmt.Sprintf(primaryHeaderFmt, "STOREDPROC", strings.Join(headerIncludes, ""), procHeaderFileContents.String())
 	outFile := filepath.Join(procOut, fmt.Sprintf(primaryHeaderFileName, procPackageOutDir))
 	if fErr := utils.WriteToFile(outFile, procHeaderFileStr); fErr != nil {
 		err = fmt.Errorf("failed to write file %s: %w", outFile, fErr)

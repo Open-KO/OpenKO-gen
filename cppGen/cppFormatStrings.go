@@ -1,14 +1,20 @@
 package cppGen
 
 const (
-	// 1. includes
-	// 2. file contents
+	// 1. header file name
+	// 2. includes
+	// 3. file contents
 	// TODO: \mainpage doc?
 	// primaryHeaderFmt is the template for the primary header file
-	primaryHeaderFmt = `#pragma once
+	primaryHeaderFmt = `#ifndef %[1]s_H
+#define %[1]s_H
 
-%[1]s
-%[2]s`
+#pragma once
+
+%[2]s
+%[3]s
+
+#endif // %[1]s_H`
 
 	// 1. includes
 	// 2. file contents
@@ -17,21 +23,27 @@ const (
 	primarySourceFmt = `%[1]s
 %[2]s`
 
-	// 1. includes
-	// 2. model class forward declarations
-	// 3. file contents
+	// 1. header file name
+	// 2. includes
+	// 3. model class forward declarations
+	// 4. file contents
 	// TODO: \mainpage doc?
 	// primaryHeaderFmt is the template for the primary header file
-	binderHeaderFmt = `#pragma once
+	binderHeaderFmt = `#ifndef %[1]s_H
+#define %[1]s_H
 
-%[1]s
+#pragma once
+
+%[2]s
 namespace nanodbc
 {
 	class result;
 }
 
-%[2]s
-%[3]s`
+%[3]s
+%[4]s
+
+#endif // %[1]s_H`
 
 	// 1. binder filename
 	// 2. model filename
