@@ -85,32 +85,27 @@ namespace nanodbc
 	modelClassSourceFmt = `%[1]s`
 
 	// 1. doxygen block
-	// 2. union array def
-	// 3. column list
-	unionArrayFmt = `
-		union
-		{%[1]s
-%[2]s
-
-			struct
-			{
-%[3]s
-			};
-		};`
+	// 2. array def
+	arrayFmt = `%[1]s
+%[2]s;
+`
 
 	// 1. cppType
-	// 2. Union Array Name
-	// 3. Union Array Len
+	// 2. Array Name
+	// 3. Array Len
 	// 4. initialized value
-	unionArrayDefFmt = "%[1]s %[2]s[%[3]d]%[4]s;"
+	arrayDefFmt = "%[1]s %[2]s[%[3]d]%[4]s"
 
 	// 1. first column name in array group
 	// 2. last column name in array group
-	// 3. property name
-	unionArrayDoxygenFmt = `
-	/// \brief Union array grouping for columns [%[1]s] to [%[2]s]
-	///
-	/// \property %[3]s`
+	// 3. column-specific documentation
+	// 4. property name
+	arrayDoxygenFmt = `
+/// \brief Array grouping for columns [%[1]s] to [%[2]s]
+///
+%[3]s
+///
+/// \property %[4]s`
 
 	// 1. name
 	// 2. contents
