@@ -98,14 +98,13 @@ func (d *CppTemplate) AddMethod(def igenerator.MethodDef) {
 	// 6. pure
 	d.decls = append(d.decls, fmt.Sprintf(methodDeclFmt, def.Description, modifiers, returnType, def.Name, params, pure))
 
-	// 1. description
-	// 2. return type
-	// 3. class name
-	// 4. function name
-	// 5. params, csv
-	// 6. pure
-	// 7. function body
-	d.methods = append(d.methods, fmt.Sprintf(methodImplFmt, def.Description, implReturnType, def.ClassName, def.Name, params, pure, def.Body))
+	// 1. return type
+	// 2. class name
+	// 3. function name
+	// 4. params, csv
+	// 5. pure
+	// 6. function body
+	d.methods = append(d.methods, fmt.Sprintf(methodImplFmt, implReturnType, def.ClassName, def.Name, params, pure, def.Body))
 }
 
 func (d *CppTemplate) AddInclude(s string) {

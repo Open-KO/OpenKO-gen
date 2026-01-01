@@ -168,17 +168,15 @@ enum class %[1]s
 		/// \brief %[1]s
 		%[2]s%[3]s%[4]s(%[5]s)%[6]s;`
 
-	// 1. description
-	// 2. return type
-	// 3. class name
-	// 4. function name
-	// 5. params, csv
-	// 6. pure
-	// 7. function body
+	// 1. return type
+	// 2. class name
+	// 3. function name
+	// 4. params, csv
+	// 5. pure
+	// 6. function body
 	methodImplFmt = `
-	/// \brief %[1]s
-	%[2]s%[3]s::%[4]s(%[5]s)%[6]s
-	{%[7]s
+	%[1]s%[2]s::%[3]s(%[4]s)%[5]s
+	{%[6]s
 	}`
 
 	// 1: table name
