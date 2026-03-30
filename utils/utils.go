@@ -14,7 +14,7 @@ const (
 	DefaultSchemaDir = "./OpenKO-db/jsonSchema"
 	schemaExtPattern = "*.json"
 	GormLibOut       = "OpenKO-gorm/"
-	CppLibOut        = "OpenKO-db-modules/"
+	CppLibOut        = "OpenKO-db-models/"
 	procedureDir     = "procedures"
 )
 

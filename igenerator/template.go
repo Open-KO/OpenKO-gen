@@ -14,13 +14,15 @@ type Template interface {
 }
 
 type MethodDef struct {
-	ReturnType    string
-	Name          string
-	Params        [][]string
-	Body          string
-	Description   string
-	IsPtrReceiver bool
-	IsStatic      bool
-	IsPure        bool
-	IsThrow       bool
+	ReturnType     string
+	ImplReturnType string
+	ClassName      string
+	Name           string
+	Params         [][]string
+	Body           string
+	Description    string
+	IsPtrReceiver  bool
+	IsStatic       bool
+	IsPure         bool
+	IsThrow        bool
 }

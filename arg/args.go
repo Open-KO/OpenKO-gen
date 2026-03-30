@@ -27,9 +27,9 @@ func init() {
 	}
 	LangInfoMap[CppLibrary] = LangInfo{
 		Name:             CppLibrary,
-		Description:      "C++ model and nanodbc binder modules with doxygen-compliant documentation",
+		Description:      "C++ model and nanodbc binder classes with doxygen-compliant documentation",
 		DefaultOut:       utils.CppLibOut,
-		ArtifactProduced: "OpenKO-db-modules",
+		ArtifactProduced: "OpenKO-db-models",
 	}
 }
 

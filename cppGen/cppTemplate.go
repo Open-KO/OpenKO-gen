@@ -13,34 +13,40 @@ import (
 )
 
 const (
-	fileNameFmt string = "%[1]s.ixx"
-
 	// 1. {ns}Model or {ns}Binder
-	primaryModuleFileName = "%s.ixx"
-	moduleSuffixModelFmt  = "%sModel"
-	moduleSuffixBinderFmt = "%sBinder"
+	primaryHeaderFileName = "%s.h"
+	primarySourceFileName = "%s.cpp"
+	classSuffixModelFmt   = "%sModel"
+	classSuffixBinderFmt  = "%sBinder"
 )
 
-type CppTemplate struct {
-	def     jsonSchema.TableDef
-	methods []string
-	// we use includes for both #include and import
-	// true map val = include
-	// false map val = import
-	includes       map[string]bool
-	consts         map[string]string
-	additionalCode []string
-	namespace      string
-	moduleSuffix   string
-	moduleDef      ModuleDef
-}
-
-type AggregateUnion struct {
-	union         jsonSchema.Union
+type AggregateArray struct {
+	array         jsonSchema.Union // TODO: This should be changed to reflect that it's purely an array everywhere
 	firstColName  string
 	columnPattern string
 	cppType       string
 	defs          []jsonSchema.Column
+}
+
+type ArrayElement struct {
+	pattern string
+	index   int
+}
+
+type CppTemplate struct {
+	def     jsonSchema.TableDef
+	decls   []string
+	methods []string
+	// we use includes for both #include and import
+	// true map val = include
+	// false map val = import
+	includes            map[string]bool
+	consts              map[string]string
+	additionalCode      []string
+	namespace           string
+	moduleDef           ModuleDef
+	arrayAggregates     map[string]AggregateArray
+	fieldToArrayElement map[string]ArrayElement
 }
 
 func (d *CppTemplate) SetTableDef(def jsonSchema.TableDef) {
@@ -79,13 +85,26 @@ func (d *CppTemplate) AddMethod(def igenerator.MethodDef) {
 		returnType = fmt.Sprintf("%s ", def.ReturnType)
 	}
 
+	implReturnType := returnType
+	if len(def.ImplReturnType) > 0 {
+		implReturnType = fmt.Sprintf("%s ", def.ImplReturnType)
+	}
+
 	// 1. description
 	// 2. modifiers (static, inline, etc)
 	// 3. return type
 	// 4. function name
 	// 5. params, csv
+	// 6. pure
+	d.decls = append(d.decls, fmt.Sprintf(methodDeclFmt, def.Description, modifiers, returnType, def.Name, params, pure))
+
+	// 1. return type
+	// 2. class name
+	// 3. function name
+	// 4. params, csv
+	// 5. pure
 	// 6. function body
-	d.methods = append(d.methods, fmt.Sprintf(methodFmt, def.Description, modifiers, returnType, def.Name, params, def.Body, pure))
+	d.methods = append(d.methods, fmt.Sprintf(methodImplFmt, implReturnType, def.ClassName, def.Name, params, pure, def.Body))
 }
 
 func (d *CppTemplate) AddInclude(s string) {
@@ -93,43 +112,31 @@ func (d *CppTemplate) AddInclude(s string) {
 		d.includes = make(map[string]bool)
 	}
 
-	key := ""
-	if strings.Contains(s, "\"") || strings.Contains(s, "<") {
-		key = fmt.Sprintf(includeFmt, s)
-		d.includes[key] = true
-	} else {
-		key = fmt.Sprintf(importFmt, s)
-		d.includes[key] = false
-	}
+	key := fmt.Sprintf(includeFmt, s)
+	d.includes[key] = true
 }
 
-func (d *CppTemplate) Generate() (string, error) {
+func (d *CppTemplate) Generate() (string, string, error) {
 	if d.def.ClassName == "" {
-		return "", fmt.Errorf("className not set")
+		return "", "", fmt.Errorf("className not set")
 	}
 
 	return d.GenerateModelClass()
 }
 
-func (d *CppTemplate) GenerateModelClass() (string, error) {
-	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
-	identifier := CppIdentifier{}
-
-	// fieldStrBuilder will collect all of our generated model class members
-	fieldStrBuilder := strings.Builder{}
-
-	unionAggregates := make(map[string]AggregateUnion)
-	fieldToUnionPatterns := make(map[string]string)
+func (d *CppTemplate) PrepareClassForGeneration() error {
+	d.arrayAggregates = make(map[string]AggregateArray)
+	d.fieldToArrayElement = make(map[string]ArrayElement)
 	for i := range d.def.Unions {
-		unionAggregates[d.def.Unions[i].ColumnPattern] = AggregateUnion{
-			union: d.def.Unions[i],
+		d.arrayAggregates[d.def.Unions[i].ColumnPattern] = AggregateArray{
+			array: d.def.Unions[i],
 			defs:  []jsonSchema.Column{},
 		}
 	}
 
-	// initial column pass to pre-build aggregate union info
-	// so we can just dump the union in place of the first matching member
-	// and skip the rest.
+	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
+	identifier := CppIdentifier{}
+
 	for i := range d.def.Columns {
 		field := &d.def.Columns[i]
 
@@ -142,7 +149,7 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 
 		cppType, err := identifier.GetType(*field)
 		if err != nil {
-			return "", err
+			return err
 		}
 
 		// add type-specific imports as needed
@@ -156,34 +163,56 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 			d.AddInclude("<optional>")
 		}
 
-		// does the field column name match any union patterns?
-		for pattern, unionAggregate := range unionAggregates {
+		// does the field column name match any array patterns?
+		for pattern, arrayAggregate := range d.arrayAggregates {
 			matched, err := regexp.Match(pattern, []byte(field.Name))
 			if err != nil {
-				return "", err
+				return err
 			}
-			if matched {
-				unionAggregate.defs = append(unionAggregate.defs, *field)
-				unionAggregate.cppType = cppType
 
-				if len(unionAggregate.firstColName) == 0 {
-					unionAggregate.firstColName = field.Name
+			if matched {
+				arrayIndex := len(arrayAggregate.defs)
+				arrayAggregate.defs = append(arrayAggregate.defs, *field)
+				arrayAggregate.cppType = cppType
+
+				if len(arrayAggregate.firstColName) == 0 {
+					arrayAggregate.firstColName = field.Name
 				}
 
-				unionAggregate.columnPattern = field.Name
-				fieldToUnionPatterns[field.Name] = pattern
+				arrayAggregate.columnPattern = field.Name
+
+				arrayElement := ArrayElement{}
+				arrayElement.pattern = pattern
+				arrayElement.index = arrayIndex
+
+				d.fieldToArrayElement[field.Name] = arrayElement
 			}
-			unionAggregates[pattern] = unionAggregate
+
+			d.arrayAggregates[pattern] = arrayAggregate
 		}
 
 	}
+	return nil
+}
+
+func (d *CppTemplate) GenerateModelClass() (string, string, error) {
+	err := d.PrepareClassForGeneration()
+	if err != nil {
+		return "", "", err
+	}
+
+	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
+	identifier := CppIdentifier{}
+
+	// fieldStrBuilder will collect all of our generated model class members
+	fieldStrBuilder := strings.Builder{}
 
 	for i := range d.def.Columns {
 		field := &d.def.Columns[i]
 
-		// skip union member definitions for all but the first column in the group
-		unionPattern, isUnionMember := fieldToUnionPatterns[field.Name]
-		if isUnionMember && unionAggregates[unionPattern].firstColName != field.Name {
+		// skip definitions for all but the first column in the group of 'array' columns
+		arrayElement, isPartOfArray := d.fieldToArrayElement[field.Name]
+		if isPartOfArray && d.arrayAggregates[arrayElement.pattern].firstColName != field.Name {
 			continue
 		}
 
@@ -193,7 +222,7 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 
 		cppType, err := identifier.GetType(*field)
 		if err != nil {
-			return "", err
+			return "", "", err
 		}
 
 		enum := ""
@@ -221,38 +250,44 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 
 		indentLevel := 2
 
-		// at this point, we're the first union member -- all others are skipped
+		// at this point, we're the first column in an array -- all others are skipped
 		// we should include them all here.
-		if isUnionMember {
-			unionAggregate := unionAggregates[unionPattern]
+		if isPartOfArray {
+			arrayAggregate := d.arrayAggregates[arrayElement.pattern]
 
-			colList := strings.Builder{}
-			for j := range unionAggregate.defs {
-				// subsequent members should be separated by a newline
-				if colList.Len() > 0 {
-					colList.WriteString("\n\n")
+			colDocList := strings.Builder{}
+			for j := range arrayAggregate.defs {
+				colDocList.WriteString(fmt.Sprintf("/// Column [%s]: %s", arrayAggregate.defs[j].Name, arrayAggregate.defs[j].Description))
+
+				if j != len(arrayAggregate.defs)-1 {
+					colDocList.WriteString("\n")
 				}
-
-				colList.WriteString(d.GenerateModelMember(*field, unionAggregate.defs[j], unionAggregate.cppType, hasEnums, enum, isUnionMember))
 			}
 
 			// create a doxygen block
 			doxygen := strings.Builder{}
 
-			doxygen.WriteString(utils.FormatAndIndentLines(indentLevel, unionArrayDoxygenFmt, unionAggregate.firstColName, unionAggregate.columnPattern, unionAggregate.union.PropertyName))
-			unionArrayInitializer := getInitializer(unionAggregate.cppType)
-			unionArrayDef := fmt.Sprintf(unionArrayDefFmt, unionAggregate.cppType, unionAggregate.union.PropertyName, len(unionAggregate.defs), unionArrayInitializer)
+			doxygen.WriteString(utils.FormatAndIndentLines(indentLevel, arrayDoxygenFmt, arrayAggregate.firstColName, arrayAggregate.columnPattern, colDocList.String(), arrayAggregate.array.PropertyName))
+			unionArrayInitializer := getInitializer(arrayAggregate.cppType)
+			unionArrayDef := fmt.Sprintf(arrayDefFmt, arrayAggregate.cppType, arrayAggregate.array.PropertyName, len(arrayAggregate.defs), unionArrayInitializer)
 
 			fieldStrBuilder.WriteString(fmt.Sprintf(
-				unionArrayFmt,
+				arrayFmt,
 				doxygen.String(),
-				utils.FormatAndIndentLines(indentLevel+1, "%s", unionArrayDef),
-				utils.FormatAndIndentLines(indentLevel+2, "%s", colList.String())))
+				utils.FormatAndIndentLines(indentLevel, "%s", unionArrayDef)))
 		} else {
 			fieldStrBuilder.WriteString("\n")
-			member := d.GenerateModelMember(*field, *field, cppType, hasEnums, enum, isUnionMember)
+			member := d.GenerateModelMember(*field, *field, cppType, hasEnums, enum)
 			fieldStrBuilder.WriteString(utils.FormatAndIndentLines(indentLevel, "%s", member))
 		}
+	}
+
+	decls := strings.Builder{}
+	for i := range d.decls {
+		if i > 0 {
+			decls.WriteString("\n")
+		}
+		decls.WriteString(d.decls[i])
 	}
 
 	methods := strings.Builder{}
@@ -269,10 +304,12 @@ func (d *CppTemplate) GenerateModelClass() (string, error) {
 	doxygen.WriteString(fmt.Sprintf(getDbTypeXRefFmt(d.def.Database, d.moduleDef.OutDir), d.def.Name, d.def.Description))
 
 	binderNs := fmt.Sprintf(profile.BinderNsFmt, d.moduleDef.namespace)
-	return fmt.Sprintf(modelClassFmt, d.def.ClassName, fieldStrBuilder.String(), methods.String(), doxygen.String(), binderNs), nil
+	headerStr := fmt.Sprintf(modelClassHeaderFmt, d.def.ClassName, fieldStrBuilder.String(), decls.String(), doxygen.String(), binderNs)
+	sourceStr := fmt.Sprintf(modelClassSourceFmt, methods.String())
+	return headerStr, sourceStr, nil
 }
 
-func (d *CppTemplate) GenerateModelMember(firstField jsonSchema.Column, field jsonSchema.Column, cppType string, hasEnums bool, enum string, isUnionMember bool) string {
+func (d *CppTemplate) GenerateModelMember(firstField jsonSchema.Column, field jsonSchema.Column, cppType string, hasEnums bool, enum string) string {
 
 	// create a doxygen block
 	doxygen := strings.Builder{}
@@ -286,21 +323,16 @@ func (d *CppTemplate) GenerateModelMember(firstField jsonSchema.Column, field js
 
 	doxygen.WriteString(fmt.Sprintf("/// \\property %s\n", field.PropertyName))
 
-	initializer := ""
-
-	// only the first member of a union can have an initializer.
-	// this should be the largest, which in our case is the array.
-	// don't assign an initializer for all of the individual members.
-	if !isUnionMember {
-		initializer = getInitializer(cppType)
-	}
+	initializer := getInitializer(cppType)
 
 	member := doxygen.String()
 	member += fmt.Sprintf(memberFmt, cppType, field.PropertyName, initializer, enum)
 	return member
 }
 
-func (d *CppTemplate) GenerateBinderClass() (string, error) {
+func (d *CppTemplate) GenerateBinderClass() (string, string, error) {
+	d.PrepareClassForGeneration()
+
 	// identifier is used to assign the correct c++ type from the columns' tsql.TsqlType
 	identifier := CppIdentifier{}
 	modelNs := fmt.Sprintf(profile.ModelNsFmt, d.moduleDef.namespace)
@@ -315,7 +347,15 @@ func (d *CppTemplate) GenerateBinderClass() (string, error) {
 
 		cppType, err := identifier.GetType(*field)
 		if err != nil {
-			return "", err
+			return "", "", err
+		}
+
+		propertyName := field.PropertyName
+
+		arrayElement, isPartOfArray := d.fieldToArrayElement[field.Name]
+		if isPartOfArray {
+			arrayAggregate := d.arrayAggregates[arrayElement.pattern]
+			propertyName = fmt.Sprintf("%s[%d]", arrayAggregate.array.PropertyName, arrayElement.index)
 		}
 
 		// add binding method
@@ -327,14 +367,14 @@ func (d *CppTemplate) GenerateBinderClass() (string, error) {
 			castFunc := "binderUtil::CTimeFromDbTime"
 
 			if field.AllowNull {
-				propBindBody = fmt.Sprintf(funcOptionalPropBindingCastFmt, castCppType, field.PropertyName, castFunc)
+				propBindBody = fmt.Sprintf(funcOptionalPropBindingCastFmt, castCppType, propertyName, castFunc)
 			} else {
-				propBindBody = fmt.Sprintf(funcPropBindingCastFmt, castCppType, field.PropertyName, castFunc)
+				propBindBody = fmt.Sprintf(funcPropBindingCastFmt, castCppType, propertyName, castFunc)
 			}
 		} else if field.AllowNull {
-			propBindBody = fmt.Sprintf(funcPropBindingFmt, cppType, field.PropertyName)
+			propBindBody = fmt.Sprintf(funcPropBindingFmt, cppType, propertyName)
 		} else {
-			propBindBody = fmt.Sprintf(funcPropBindingFmt, _type, field.PropertyName)
+			propBindBody = fmt.Sprintf(funcPropBindingFmt, _type, propertyName)
 		}
 
 		propBindDef := igenerator.MethodDef{
@@ -345,11 +385,20 @@ func (d *CppTemplate) GenerateBinderClass() (string, error) {
 				{"const nanodbc::result&", "result"},
 				{"short", "colIndex"},
 			},
+			ClassName:   d.def.ClassName,
 			Name:        fmt.Sprintf("Bind%s", field.PropertyName),
 			Body:        propBindBody,
 			Description: fmt.Sprintf("Binds a result's column to %s", field.PropertyName),
 		}
 		d.AddMethod(propBindDef)
+	}
+
+	decls := strings.Builder{}
+	for i := range d.decls {
+		if i > 0 {
+			decls.WriteString("\n")
+		}
+		decls.WriteString(d.decls[i])
 	}
 
 	methods := strings.Builder{}
@@ -360,11 +409,9 @@ func (d *CppTemplate) GenerateBinderClass() (string, error) {
 		methods.WriteString(d.methods[i])
 	}
 
-	return fmt.Sprintf(binderClassFmt, d.def.ClassName, methods.String(), modelNs), nil
-}
-
-func (d *CppTemplate) GetFileName() string {
-	return fmt.Sprintf(fileNameFmt, fmt.Sprintf("%s-%s", d.moduleSuffix, d.def.ClassName))
+	headerStr := fmt.Sprintf(binderClassHeaderFmt, d.def.ClassName, decls.String(), modelNs)
+	sourceStr := fmt.Sprintf(binderClassSourceFmt, methods.String(), modelNs)
+	return headerStr, sourceStr, nil
 }
 
 func (d *CppTemplate) AddConst(name string, value string) {
@@ -402,4 +449,12 @@ func getProcXRefFmt(databaseType dbType.DbType) string {
 	dbName := fmt.Sprintf("%s Database Stored Procedures", databaseType)
 	retStr := fmt.Sprintf("\t/// \\xrefitem %[1]s \"%[2]s\" \"%[2]s\"", dbId, dbName)
 	return retStr + " %s %s"
+}
+
+func generateIncludeGuard(path string) string {
+	path = strings.ReplaceAll(path, ".", "_")
+	path = strings.ReplaceAll(path, "/", "_")
+	path = strings.ReplaceAll(path, "\\", "_")
+	path = strings.ToUpper(path)
+	return path
 }
